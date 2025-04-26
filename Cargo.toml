@@ -1,0 +1,68 @@
+[package]
+name = "arcloader"
+authors = [ "mew" ]
+description = "Nope"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(todo)'] }
+
+[profile.release]
+opt-level = "z"
+#opt-level = 2
+#codegen-units = 1
+#debug = true
+panic = "abort"
+#lto = "thin"
+lto = true
+
+[dependencies]
+#anyhow = "1.0.95"
+log = { version = "0.4", optional = true }
+#tokio = { version = "1.43.0", features = [ "full" ] }
+arcdps = { git = "https://github.com/zerthox/arcdps-rs", default-features = false }
+nexus = { git = "https://github.com/zerthox/nexus-rs", default-features = false, optional = true }
+gw2_mumble = { git = "https://github.com/zerthox/gw2-mumble-rs", default-features = false, features = ["json"], optional = true }
+#arcdps-imgui = "0.8.0"
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+#reqwest = { version = "0.12.15", features = [ "stream" ] }
+#tempfile = "3.19.1"
+#bytes = "1.10.1"
+#tokio-stream = "0.1.17"
+#tokio-util = "0.7.14"
+#futures = "0.3.31"
+#chrono = { version = "0.4.40", features = [ "serde", "alloc" ] }
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.60" }
+windows-strings = { version = "0.3.1" }
+
+[features]
+default = [
+	#"unwind",
+	#"extras",
+	"log",
+	#"nexus-host"
+	"arcdps-codegen"
+]
+unwind = ["arcdps/unwind"]
+extras = ["arcdps/extras"]
+nexus = ["dep:nexus"]
+mumble = ["dep:gw2_mumble", "nexus/mumble"]
+nexus-host = ["nexus", "mumble"]
+log = ["dep:log", "arcdps/log", "nexus?/log"]
+serde = ["dep:serde", "dep:serde_json", "arcdps/serde"]
+arcdps-codegen = ["arcdps/export"]
+
+[patch."https://github.com/zerthox/gw2-mumble-rs"]
+gw2_mumble = { git = "https://github.com/arcnmx/gw2-mumble-rs" }
+
+[patch."https://github.com/zerthox/arcdps-rs"]
+arcdps = { git = "https://github.com/arcnmx/arcdps-rs" }
+
+[patch."https://github.com/zerthox/nexus-rs"]
+nexus = { git = "https://github.com/arcnmx/nexus-rs" }
