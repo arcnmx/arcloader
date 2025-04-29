@@ -46,8 +46,8 @@ default = [
 	#"unwind",
 	#"extras",
 	"log",
-	#"nexus-host"
-	"arcdps-codegen"
+	"nexus-host"
+	#"arcdps-codegen"
 ]
 unwind = ["arcdps/unwind"]
 extras = ["arcdps/extras"]
