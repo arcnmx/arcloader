@@ -2,7 +2,7 @@
   outputs = import ./.;
   packages = outputs.packages.${pkgs.system};
   artifactRoot = ".ci/artifacts";
-  artifacts = "${artifactRoot}/lib/arcloader.dll";
+  artifacts = "${artifactRoot}/bin/arcloader.dll";
 in
 {
   config = {
@@ -10,11 +10,7 @@ in
     ci.gh-actions.enable = true;
     cache.cachix.arc.enable = true;
     channels = {
-      nixpkgs = {
-        # see https://github.com/arcnmx/nixexprs-rust/issues/10
-        args.config.checkMetaRecursively = false;
-        version = "22.11";
-      };
+      nixpkgs.version = "22.11";
     };
     tasks = {
       build.inputs = singleton packages.arcloader;

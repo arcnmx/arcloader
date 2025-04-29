@@ -99,13 +99,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: arcloader
-        path: .ci/artifacts/lib/arcloader.dll
+        path: .ci/artifacts/bin/arcloader.dll
     - id: release-upload
       if: startsWith(github.ref, 'refs/tags/')
       name: release
       uses: softprops/action-gh-release@v1
       with:
-        files: .ci/artifacts/lib/arcloader.dll
+        files: .ci/artifacts/bin/arcloader.dll
 name: arcloader
 'on':
 - push
