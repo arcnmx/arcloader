@@ -9,7 +9,7 @@ in {
 , source ? crate.src
 , crate ? self.lib.crate
 }: with lib; let
-  cflags = [ "-Oz" ];
+  stripAll = buildType == "release";
 in rustPlatform.buildRustPackage {
   pname = crate.name;
   inherit (crate) version;
@@ -18,8 +18,15 @@ in rustPlatform.buildRustPackage {
   inherit cargoLock buildType;
   doCheck = false;
 
-  "CFLAGS_x86_64_pc_windows_gnu" = toString cflags;
-  "CXXFLAGS_x86_64_pc_windows_gnu" = toString cflags;
+  ${if stripAll then "stripAllList" else null} = ["bin"];
+
+  postInstall = ''
+    rm -f $out/lib/lib${crate.name}${hostPlatform.extensions.sharedLibrary}.a
+    rmdir --ignore-fail-on-non-empty $out/lib
+  '';
+
+  #"CFLAGS_x86_64_pc_windows_gnu" = cxxflags;
+  #"CXXFLAGS_x86_64_pc_windows_gnu" = cxxflags;
 
   meta = {
     license = licenses.mit;

@@ -1,9 +1,7 @@
-use std::{ffi::{c_char, c_void, CStr}, num::NonZeroU32, ptr};
-use windows::Win32::Foundation::HMODULE;
+use std::{ffi::c_void, num::NonZeroU32, ptr};
 use arcdps::{
 	imgui::sys as imgui_sys,
-	callbacks::ArcDpsExport,
-	__macro::{MallocFn, FreeFn, init as arcdps_rs_init, ui as imgui_ui},
+	__macro::{MallocFn, FreeFn},
 };
 use crate::export;
 

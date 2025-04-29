@@ -1,5 +1,5 @@
 {
-  description = "TaimiHUD; timers, markers and hopefully paths for raidcore.gg nexus";
+  description = ":3";
   inputs = {
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -12,7 +12,6 @@
     };
     flake-utils = {
       url = "github:numtide/flake-utils";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -34,9 +33,7 @@
           "-L native=${rust-w64.pkgs.windows.pthreads}/lib"
         ];
       });
-      cflags = [
-        "-Oz"
-      ];
+      cxxflags = self.lib.cxxflags;
       rustcflags = [
         #"-Clink-arg=-Wl,--gc-sections"
       ];
@@ -46,8 +43,8 @@
       cargo-cc = csuper.cargo-cc // cself.context.rlib.cargoEnv {
         inherit target;
       } // {
-        "CFLAGS_${ccEnvVar target.triple}" = toString cflags;
-        "CXXFLAGS_${ccEnvVar target.triple}" = toString cflags;
+        "CFLAGS_${ccEnvVar target.triple}" = toString cxxflags;
+        "CXXFLAGS_${ccEnvVar target.triple}" = toString cxxflags;
         RUSTC_FLAGS = toString rustcflags;
       };
       rust-cc = csuper.rust-cc // cself.context.rlib.rustCcEnv {
@@ -97,14 +94,14 @@
     };
 
     packages = {
-      default = packages.${system}.arcloader;
+      default = packages.arcloader;
       arcloader = pkgs-w64.callPackage ./derivation.nix {
         ${if !pkgs-w64.buildPlatform.isWindows then "rustPlatform" else null} = channel-w64.rustPlatform;
         #source = self.lib.crate.src;
         inherit (legacyPackages) source;
         inherit (self.lib) crate;
       };
-      arcloader-debug = packages.${system}.arcloader.override {
+      arcloader-debug = packages.arcloader.override {
         buildType = "debug";
       };
     };
@@ -114,6 +111,12 @@
         path = ./Cargo.toml;
         inherit (import ./lock.nix) outputHashes;
       };
+      cxxflags = [
+        "-Oz"
+        "-march=x86-64-v3"
+        "-fno-rtti" "-fno-exceptions" "-fnothrow-opt"
+        "-fno-threadsafe-statics" "-fuse-cxa-atexit" # "-fvisibility-inlines-hidden"
+      ];
     };
     inherit (self.lib.crate) version;
   };
