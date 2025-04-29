@@ -31,6 +31,6 @@ in rustPlatform.buildRustPackage {
   meta = {
     license = licenses.mit;
     maintainers = [ maintainers.arcnmx ];
-    platforms = platforms.windows;
+    #platforms = platforms.windows;
   };
 }
