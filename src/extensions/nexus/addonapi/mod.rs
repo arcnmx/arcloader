@@ -154,24 +154,31 @@ unsafe impl Sync for NexusHost {}
 macro_rules! addonapi_stub {
 	($mod_:ident :: $f:ident $arg:tt => $res:expr) => {
 		{
-			addonapi_stub! {
+			addonapi_stub! { @log(warn, " unimplemented stub")
 				$mod_ :: $f $arg
 			}
 
 			$res
 		}
 	};
-	($module:ident :: $f:ident ($($fmt:literal)? $(, $($farg:tt)*)?)) => {
+	($mod_:ident :: $f:ident $arg:tt) => {
+		{
+			addonapi_stub! { @log(debug, "")
+				$mod_ :: $f $arg
+			}
+		}
+	};
+	(@log($level:ident, $postfix:literal) $module:ident :: $f:ident ($($fmt:literal)? $(, $($farg:tt)*)?)) => {
 		{
 			#[cfg(feature = "log")]
-			addonapi_stub! { @log::warn(
-				concat!("AddonApi::", stringify!($module), ".", stringify!($f), "(", $($fmt,)? ")", " unimplemented stub")
+			addonapi_stub! { @log::$level(
+				concat!("AddonApi::", stringify!($module), ".", stringify!($f), "(", $($fmt,)? ")", $postfix)
 				$(, $($farg)*)?
 			) }
 		}
 	};
-	(@log::warn($($tt:tt)*)) => {
-		log::warn! { $($tt)* }
+	(@log::$level:ident($($tt:tt)*)) => {
+		log::$level! { $($tt)* }
 	};
 }
 
