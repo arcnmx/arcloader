@@ -38,7 +38,13 @@ serde_json = { version = "1", optional = true }
 #futures = "0.3.31"
 #chrono = { version = "0.4.40", features = [ "serde", "alloc" ] }
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.60" }
+windows = { version = "0.60", features = [
+	"Win32_System_Com",
+	"Win32_Graphics_Imaging",
+	"Win32_Graphics_Direct3D",
+	"Win32_Graphics_Direct3D11",
+	"Win32_Graphics_Dxgi_Common",
+] }
 windows-strings = { version = "0.3.1" }
 
 [features]

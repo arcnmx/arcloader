@@ -5,7 +5,10 @@ use windows::{core::Owned, Win32::Foundation::{ERROR_NOT_FOUND, HMODULE}};
 
 use crate::{
 	extensions::nexus::{
-		addonapi::data_link::{MumbleIdentity, MUMBLE_LINK},
+		addonapi::{
+			data_link::{MumbleIdentity, MUMBLE_LINK},
+			texture::TextureCache,
+		},
 		NexusAddon, NexusAddonCache
 	},
 	util::{nexus::NexusId, win::{get_module_from_ptr, WinError, WinResult}},
@@ -94,6 +97,8 @@ impl NexusHost {
 			// tracking for AddonFlag::OnlyLoadDuringGameLaunchSequence
 			self.load_missed = true;
 		}
+
+		TextureCache::texture_uploads();
 
 		let mli_update = if let Ok(mut host) = NEXUS_HOST.try_write() {
 			#[cfg(todo)]
