@@ -151,6 +151,7 @@ impl Options {
 		let mut cmd = None;
 
 		let colours = Self::colours();
+		let button_width = ui.current_font().fallback_advance_x * 10.0;
 
 		for ext in sv.arcdps.values() {
 			let ext_token = ui.push_id(Id::Int(ext.sig.get() as i32));
@@ -164,7 +165,8 @@ impl Options {
 
 			let is_self = ext.sig == crate::export::arcdps::SIG;
 			if !is_self && exports::has_remove_extension() {
-				let width = ui.current_column_width();
+				let width = ui.current_column_width()
+					.max(button_width);
 				let remove = ui.button_with_size("unload", [width, 0.0]);
 				if remove {
 					#[cfg(feature = "log")] {
@@ -184,6 +186,10 @@ impl Options {
 			let c = ui.push_style_color(StyleColor::Text, colour);
 			ui.text_wrapped(&ext.build);
 			c.end();
+
+			ui.same_line();
+			ui.text(" (arcdps)");
+
 			let fname = ext.path.as_ref()
 				.and_then(|p| p.file_name())
 				.and_then(|p| p.to_str());
@@ -207,6 +213,7 @@ impl Options {
 		let mut cmd = None;
 
 		let colours = Self::colours();
+		let button_width = ui.current_font().fallback_advance_x * 10.0;
 
 		for ext in &sv.external {
 			if seen.contains(ext.path.as_os_str()) {
@@ -219,7 +226,8 @@ impl Options {
 			}
 
 			let ext_token = ui.push_id(Id::Ptr(Arc::as_ptr(ext) as *const _));
-			let width = ui.current_column_width();
+			let width = ui.current_column_width()
+					.max(button_width);
 			if !exports::has_add_extension() {
 				ui.text_disabled("unavailable");
 			} else if ui.button_with_size("load", [width, 0.0]) {
@@ -313,6 +321,7 @@ impl Options {
 		use crate::extensions::nexus::{NexusHost, NEXUS_HOST};
 
 		let colours = Self::colours();
+		let button_width = ui.current_font().fallback_advance_x * 10.0;
 
 		ui.separator();
 
@@ -331,7 +340,8 @@ impl Options {
 				seen.insert(path);
 			}
 
-			let width = ui.current_column_width();
+			let width = ui.current_column_width()
+					.max(button_width);
 			let unload = match addon.def().flags.contains(AddonFlags::DisableHotloading) && addon.is_loaded() {
 				false => ui.button_with_size("unload", [width, 0.0]),
 				true => {
@@ -391,6 +401,10 @@ impl Options {
 			let c = ui.push_style_color(StyleColor::Text, colour);
 			ui.text(addon.version().to_string());
 			c.end();
+
+			ui.same_line();
+			ui.text(format!(" ({})", addon.api));
+
 			if let Some(desc) = addon.description() {
 				ui.text_wrapped(desc.to_string_lossy());
 			}
