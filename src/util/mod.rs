@@ -5,7 +5,6 @@ pub mod ffi;
 #[cfg(windows)]
 pub mod win;
 
-#[macro_export]
 macro_rules! cstr {
 	($($s:tt)*) => {
 		unsafe {

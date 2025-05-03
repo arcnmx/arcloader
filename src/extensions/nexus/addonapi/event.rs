@@ -3,7 +3,6 @@ use nexus::event::RawEventConsumeUnknown;
 use crate::{
 	extensions::nexus::NexusHost,
 	util::ffi::cstr_opt,
-	cstr,
 };
 use std::ffi::{c_char, c_void, CStr};
 
