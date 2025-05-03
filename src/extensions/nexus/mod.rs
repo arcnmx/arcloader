@@ -137,3 +137,9 @@ impl NexusAddonCache {
 		rw.write().unwrap_or_else(|e| e.into_inner())
 	}
 }
+
+unsafe impl Sync for NexusAddonCache {
+}
+
+unsafe impl Send for NexusAddonCache {
+}

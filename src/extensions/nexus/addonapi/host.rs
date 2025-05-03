@@ -209,7 +209,7 @@ impl NexusHost {
 	pub fn event_broadcast(key: &CStr, data: *const c_void) {
 		let interest: Vec<_> = {
 			let host = Self::lock_read();
-			let x = NexusAddonCache::lock_read(&host.fallback_cache).event_handlers.get(key).cloned()
+			let x = NexusAddonCache::lock_read(&Self::fallback_cache()).event_handlers.get(key).cloned()
 				.into_iter().flatten()
 				.chain(host.addons.values().flat_map(|a| NexusAddonCache::lock_read(&a.cache)
 					.event_handlers.get(key).cloned().into_iter().flatten()
@@ -240,10 +240,22 @@ impl NexusHost {
 		Ok(())
 	}
 
+	pub fn fallback_cache() -> &'static Arc<RwLock<NexusAddonCache>> {
+		static CACHE: LazyLock<Arc<RwLock<NexusAddonCache>>> = LazyLock::new(|| NexusHost::lock_read().fallback_cache.clone());
+		&*CACHE
+	}
+
 	pub fn addon_for_ptr(&self, p: *const ()) -> Option<&Arc<NexusAddon>> {
-		get_module_from_ptr(p as *const _)
+		if p.is_null() {
+			return None
+		}
+		let res = get_module_from_ptr(p as *const _)
 			.ok().flatten()
-			.and_then(|module| self.addons.values().find(|a| *a.module == module))
+			.and_then(|module| self.addons.values().find(|a| *a.module == module));
+		if res.is_none() {
+			debug!("addon cache lookup failed");
+		}
+		res
 	}
 
 	pub fn cache_for(&self, p: *const ()) -> &Arc<RwLock<NexusAddonCache>> {
@@ -251,11 +263,6 @@ impl NexusHost {
 			Some(addon) => &addon.cache,
 			None => &self.fallback_cache,
 		}
-	}
-
-	#[cfg(todo)]
-	pub fn cache_fallback(read: RwLockReadGuard<Self>) -> MappedRwLockReadGuard<NexusAddonCache> {
-		read.map(|host| host.cache)
 	}
 
 	pub fn cache_rw_for(p: *const ()) -> Arc<RwLock<NexusAddonCache>> {

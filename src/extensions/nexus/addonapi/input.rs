@@ -1,6 +1,6 @@
 use nexus::keybind::{Keybind, RawKeybindHandler, RawKeybindHandlerOld};
 use crate::{
-	extensions::nexus::NexusHost,
+	extensions::nexus::{NexusAddonCache, NexusHost},
 	util::ffi::cstr_opt,
 };
 use std::ffi::c_char;
@@ -19,7 +19,7 @@ impl NexusHost {
 		});*/
 		if let Some(kb) = keybind {
 			if kb.to_bytes().len() > 1 {
-				NexusHost::lock_read().fallback_cache.write().unwrap().key_binds.insert(kb.to_owned(), keybind_handler);
+				NexusAddonCache::lock_write(Self::fallback_cache()).key_binds.insert(kb.to_owned(), keybind_handler);
 			}
 		}
 	}

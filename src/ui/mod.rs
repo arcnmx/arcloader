@@ -371,7 +371,7 @@ impl Options {
 				}
 			}
 			if ui.button("whee") {
-				for (c, cb) in &NexusHost::lock_read().fallback_cache.write().unwrap().key_binds {
+				for (c, cb) in &NexusHost::fallback_cache().read().unwrap().key_binds {
 					cb(c.as_ptr(), false);
 				}
 			}
