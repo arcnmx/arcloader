@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ffi::{CStr, c_void}, mem::{transmute, MaybeUninit}, sync::{Arc, LazyLock, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError}};
+use std::{collections::BTreeMap, ffi::{c_void, CStr}, mem::{transmute, MaybeUninit}, sync::{Arc, LazyLock, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError}};
 
 use nexus::{data_link::NexusLink, event::MumbleIdentityUpdate, gui::RenderType, imgui::{self, Ui}};
 use windows::{core::Owned, Win32::Foundation::{ERROR_NOT_FOUND, HMODULE}};
@@ -8,7 +8,7 @@ use crate::{
 		addonapi::data_link::{MumbleIdentity, MUMBLE_LINK},
 		NexusAddon, NexusAddonCache
 	},
-	util::{nexus::NexusId, win::{get_module_from_ptr, WinResult, WinError}},
+	util::{nexus::NexusId, win::{get_module_from_ptr, WinError, WinResult}},
 };
 
 pub static NEXUS_HOST: RwLock<NexusHost> = RwLock::new(NexusHost::empty());
