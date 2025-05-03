@@ -109,26 +109,15 @@ pub mod extern_ {
 		ptr::addr_of!(ARCDPS_EXPORT)
 	}
 
-	#[cfg(any(not(feature = "unwind"), not(panic = "unwind")))]
+extern_fns! {
 	unsafe extern "C" fn imgui(not_charsel_or_loading: u32) {
 		export::imgui(&imgui_ui(), not_charsel_or_loading != 0)
 	}
 
-	#[cfg(all(feature = "unwind", panic = "unwind"))]
-	unsafe extern "C-unwind" fn imgui(not_charsel_or_loading: u32) {
-		export::imgui(&imgui_ui(), not_charsel_or_loading != 0)
-	}
-
-	#[cfg(any(not(feature = "unwind"), not(panic = "unwind")))]
 	unsafe extern "C" fn options_end() {
 		export::options_end(&imgui_ui())
 	}
-
-
-	#[cfg(all(feature = "unwind", panic = "unwind"))]
-	unsafe extern "C-unwind" fn options_end() {
-		export::options_end(&imgui_ui())
-	}
+}
 
 	#[no_mangle]
 	pub unsafe extern "system" fn get_release_addr() -> Option<ReleaseFn> {
