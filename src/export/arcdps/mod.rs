@@ -47,7 +47,7 @@ pub mod extern_ {
 		callbacks::ArcDpsExport,
 		__macro::{MallocFn, FreeFn, init as arcdps_rs_init, ui as imgui_ui},
 	};
-	use crate::export::{self, arcdps::SIG};
+	use crate::{export::{self, arcdps::SIG}, util::arc::{InitFn, ReleaseFn}};
 
 	pub(crate) static mut IMGUI_CTX: *mut imgui_sys::ImGuiContext = ptr::null_mut();
 	pub(crate) static mut MALLOC: Option<MallocFn> = None;
@@ -79,9 +79,6 @@ pub mod extern_ {
 		wnd_nofilter: None,
 	};
 
-	type InitFn = unsafe extern "C" fn() -> *const ArcDpsExport;
-	type ReleaseFn = unsafe extern "C" fn();
-
 	#[no_mangle]
 	pub unsafe extern "system" fn get_init_addr(
 		arc_version: *const c_char,
@@ -91,12 +88,12 @@ pub mod extern_ {
 		malloc: Option<MallocFn>,
 		free: Option<FreeFn>,
 		d3d_version: u32,
-	) -> InitFn {
+	) -> Option<InitFn> {
 		ptr::write(ptr::addr_of_mut!(MALLOC), malloc);
 		ptr::write(ptr::addr_of_mut!(FREE), free);
 		ptr::write(ptr::addr_of_mut!(IMGUI_CTX), imgui_ctx);
 		arcdps_rs_init(arc_version, arcdps, imgui_ctx, malloc, free, id3d, d3d_version, env!("CARGO_PKG_NAME"));
-		init
+		Some(init)
 	}
 
 	unsafe extern "C" fn init() -> *const ArcDpsExport {
@@ -134,8 +131,8 @@ pub mod extern_ {
 	}
 
 	#[no_mangle]
-	pub unsafe extern "system" fn get_release_addr() -> ReleaseFn {
-		release
+	pub unsafe extern "system" fn get_release_addr() -> Option<ReleaseFn> {
+		Some(release)
 	}
 
 	unsafe extern "C" fn release() {

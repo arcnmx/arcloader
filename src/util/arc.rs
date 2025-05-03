@@ -1,9 +1,22 @@
 use std::{cmp::Ordering, env, ffi::{c_char, c_void, CStr, OsString}, fmt, mem::transmute, num::NonZeroU32, ops::Deref, os::windows::ffi::OsStringExt, path::{Path, PathBuf}, ptr::{self, NonNull}, slice::from_raw_parts, sync::{Arc, OnceLock}};
-use arcdps::{callbacks::ArcDpsExport, exports::{self, AddExtensionResult}};
+use arcdps::{imgui::sys as imgui_sys, callbacks::ArcDpsExport, __macro::{MallocFn, FreeFn}, exports::{self, AddExtensionResult}};
 use windows::{core::{Error as WinError, Owned, Free}, Win32::{Foundation::{GetLastError, ERROR_INVALID_DLL, HMODULE}, System::LibraryLoader::GetProcAddress}};
 use windows_strings::PCWSTR;
 
 use super::win::{get_module_from_ptr, WinResult};
+
+pub type GetInitFn = unsafe extern "system" fn(
+	arc_version: *const c_char,
+	imgui_ctx: *mut imgui_sys::ImGuiContext,
+	id3d: *mut c_void,
+	arcdps: HMODULE,
+	malloc: Option<MallocFn>,
+	free: Option<FreeFn>,
+	d3d_version: u32,
+) -> Option<InitFn>;
+pub type GetReleaseFn = unsafe extern "system" fn() -> Option<ReleaseFn>;
+pub type InitFn = unsafe extern "C" fn() -> *const ArcDpsExport;
+pub type ReleaseFn = unsafe extern "C" fn();
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
@@ -176,8 +189,7 @@ impl ArcDpsExtension {
 		self.extra[24] != 0
 	}
 
-	#[cfg(todo)]
-	pub fn init_addr(&self) -> Option<unsafe extern "system" fn(*const c_char, ImGuiContext, *mut c_void, HMODULE, Option<MallocFn>, Option<FreeFn>, u32) -> *mut c_void> {
+	pub fn init_addr(&self) -> Option<GetInitFn> {
 		let handle = self.module()?;
 		unsafe {
 			GetProcAddress(handle, windows_strings::s!("get_init_addr"))
@@ -185,7 +197,7 @@ impl ArcDpsExtension {
 		}
 	}
 
-	pub fn release_addr(&self) -> Option<unsafe extern "system" fn()> {
+	pub fn release_addr(&self) -> Option<GetReleaseFn> {
 		let handle = self.module()?;
 		unsafe {
 			GetProcAddress(handle, windows_strings::s!("get_release_addr"))
