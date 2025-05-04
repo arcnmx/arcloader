@@ -444,7 +444,7 @@ impl TextureUpload {
 		Ok(Texture {
 			width: self.desc.Width,
 			height: self.desc.Height,
-			resource,
+			resource: Some(resource),
 		})
 	}
 }
