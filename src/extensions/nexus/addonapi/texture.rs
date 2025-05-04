@@ -1,11 +1,11 @@
 use crate::{
-	extensions::nexus::{NexusAddonCache, NexusHost},
+	extensions::nexus::NexusHost,
 	util::{ffi::{cstr_opt, nonnull_ref}, win::{find_resource, WinError, WinResult, MAKERESOURCEA}},
 };
 use nexus::texture::{RawTextureReceiveCallback, Texture};
-use windows::{core::{Interface, InterfaceRef, Param, GUID}, Win32::{Foundation::{ERROR_CREATE_FAILED, ERROR_INVALID_HANDLE, ERROR_INVALID_PIXEL_FORMAT, ERROR_NONE_MAPPED, GENERIC_READ, HMODULE}, Graphics::{Direct3D::D3D11_SRV_DIMENSION_TEXTURE2D, Direct3D11::{ID3D11DeviceContext, ID3D11ShaderResourceView, ID3D11Texture2D, D3D11_BIND_RENDER_TARGET, D3D11_BIND_SHADER_RESOURCE, D3D11_CPU_ACCESS_WRITE, D3D11_MAPPED_SUBRESOURCE, D3D11_MAP_WRITE, D3D11_RESOURCE_MISC_GENERATE_MIPS, D3D11_SHADER_RESOURCE_VIEW_DESC, D3D11_SHADER_RESOURCE_VIEW_DESC_0, D3D11_SUBRESOURCE_DATA, D3D11_TEX2D_SRV, D3D11_TEXTURE2D_DESC, D3D11_USAGE_DEFAULT}, Dxgi::Common::{DXGI_FORMAT, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SAMPLE_DESC}, Imaging::{self as wic, CLSID_WICImagingFactory, IWICBitmapFrameDecode, IWICBitmapSource, IWICImagingFactory, IWICPalette, IWICPixelFormatInfo, WICBitmapDitherTypeErrorDiffusion, WICBitmapPaletteTypeCustom, WICDecodeMetadataCacheOnDemand, WICRect}}, System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}}};
-use windows_strings::{HStringBuilder, HSTRING, PCWSTR};
-use std::{borrow::Cow, cell::{OnceCell, RefCell}, collections::{hash_map::Entry, HashMap}, ffi::{c_char, c_void, CStr, CString, OsStr, OsString}, mem::{transmute, ManuallyDrop}, os::windows::ffi::OsStringExt, ptr::{self, NonNull}, slice::from_raw_parts_mut, sync::{Arc, LazyLock, Once, OnceLock, RwLock, TryLockError}};
+use windows::{core::{Interface, Param, GUID}, Win32::{Foundation::{ERROR_CREATE_FAILED, ERROR_INVALID_HANDLE, ERROR_INVALID_PIXEL_FORMAT, GENERIC_READ, HMODULE}, Graphics::{Direct3D::D3D11_SRV_DIMENSION_TEXTURE2D, Direct3D11::{ID3D11DeviceContext, ID3D11ShaderResourceView, ID3D11Texture2D, D3D11_BIND_RENDER_TARGET, D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_GENERATE_MIPS, D3D11_SHADER_RESOURCE_VIEW_DESC, D3D11_SHADER_RESOURCE_VIEW_DESC_0, D3D11_SUBRESOURCE_DATA, D3D11_TEX2D_SRV, D3D11_TEXTURE2D_DESC, D3D11_USAGE_DEFAULT}, Dxgi::Common::{DXGI_FORMAT, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SAMPLE_DESC}, Imaging::{self as wic, CLSID_WICImagingFactory, IWICBitmapFrameDecode, IWICBitmapSource, IWICImagingFactory, IWICPixelFormatInfo, WICBitmapDitherTypeErrorDiffusion, WICBitmapPaletteTypeCustom, WICDecodeMetadataCacheOnDemand, WICRect}}, System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}}};
+use windows_strings::{HSTRING, PCWSTR};
+use std::{borrow::Cow, collections::{hash_map::Entry, HashMap}, ffi::{c_char, c_void, CStr, CString}, mem::transmute, ptr::{self, NonNull}, sync::{Arc, LazyLock, Once, RwLock, TryLockError}};
 
 #[derive(Clone, Debug)]
 pub struct TextureLoaderWic {
@@ -63,12 +63,6 @@ impl TextureLoaderWic {
 		Ok(HSTRING::from_wide(name))
 	}
 
-	pub fn frame_pixfmt(&self, frame: &IWICBitmapSource) -> WinResult<IWICPixelFormatInfo> {
-		unsafe {
-			self.pixfmt(&frame.GetPixelFormat()?)
-		}
-	}
-
 	pub fn decode_file_frame<P: Param<PCWSTR>>(&self, path: P, frame_index: Option<u32>) -> WinResult<IWICBitmapFrameDecode> {
 		unsafe {
 			let decoder = self.factory.CreateDecoderFromFilename(path, None, GENERIC_READ, WICDecodeMetadataCacheOnDemand)?;
@@ -92,18 +86,6 @@ impl TextureLoaderWic {
 			find_resource(&module, MAKERESOURCEA(resource_id), windows_strings::s!("PNG"))
 		}?;
 		self.decode_memory_frame(data, frame_index)
-	}
-
-	pub fn frame_rect(&self, frame: &IWICBitmapSource) -> WinResult<WICRect> {
-		let (mut w, mut h) = (0, 0);
-		unsafe {
-			frame.GetSize(&mut w, &mut h)
-		}.map(|()| WICRect {
-			X: 0,
-			Y: 0,
-			Width: w as _,
-			Height: h as _,
-		})
 	}
 
 	pub fn pixfmt_to_dxgi(wic: &GUID) -> Option<DXGI_FORMAT> {
@@ -337,23 +319,6 @@ impl WicImage {
 
 		Ok(desc)
 	}
-
-	pub fn describe_d3d11_subresource(&self, data: Option<NonNull<u8>>) -> WinResult<D3D11_SUBRESOURCE_DATA> {
-		let (size, stride) = self.size_info()?;
-		Ok(D3D11_SUBRESOURCE_DATA {
-			pSysMem: data
-				.map(|d| d.as_ptr() as *const u8 as *const c_void)
-				.unwrap_or(ptr::null()),
-			SysMemPitch: stride,
-			SysMemSlicePitch: size as u32,
-		})
-	}
-}
-
-#[derive(Debug, Clone)]
-pub struct TextureRequest {
-	pub callback: Option<RawTextureReceiveCallback>,
-	pub upload: TextureUpload,
 }
 
 #[derive(Debug, Clone)]
