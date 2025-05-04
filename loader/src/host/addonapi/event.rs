@@ -6,7 +6,7 @@ use ::{
 	std::mem,
 };
 use crate::{
-	host::addonapi::NexusHost,
+	host::addonapi::{NexusHost, NEXUS_HOST},
 	util::ffi::{cstr_opt, cstr_write},
 };
 use std::{ffi::{c_char, c_void, CStr}, mem::MaybeUninit};
@@ -109,6 +109,19 @@ impl NexusHost {
 				.or_default();
 			handlers.insert(consume_callback);
 		});
+
+		// TODO: broadcast a normal event informing everyone about the new subscriber instead of this
+		match id {
+			id if id == Self::EV_MUMBLE_IDENTITY_UPDATED => {
+				let mli = NEXUS_HOST.try_read()
+					.ok()
+					.and_then(|host| host.mumble_link_identity_ptr());
+				if let Some(mli) = mli {
+					consume_callback(mli.as_ptr() as *const _ as *const c_void);
+				}
+			},
+			_ => (),
+		}
 	}
 
 	pub unsafe extern "C-unwind" fn addonapi_event_unsubscribe(identifier: *const c_char, consume_callback: RawEventConsumeUnknown) {
