@@ -292,8 +292,8 @@ dependencies = [
 
 [[package]]
 name = "nexus"
-version = "0.7.0"
-source = "git+https://github.com/arcnmx/nexus-rs#6edd191d4ec623046e373eb357eb6c9ba8af6e75"
+version = "0.8.0"
+source = "git+https://github.com/arcnmx/nexus-rs#ff14162c871596f6de6376c5a29172e115b1f39a"
 dependencies = [
  "arcdps-imgui",
  "bitflags 2.9.0",
