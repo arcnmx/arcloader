@@ -83,9 +83,8 @@ impl Options {
 
 		let ext_cmd = self.imgui_extensions_table(ui, &mut seen);
 
-		#[cfg(feature = "log")]
-		if let Some(cmd) = &ext_cmd {
-			debug!("arcloader command: {cmd:?}...");
+		if let Some(_cmd) = &ext_cmd {
+			debug!("arcloader command: {_cmd:?}...");
 		}
 
 		#[cfg(feature = "host-addonapi")] {
@@ -96,10 +95,8 @@ impl Options {
 			// TODO: this may be async, need a way to get result back later!
 			let res = Loader::send_command(cmd);
 
-			if let Err(e) = res {
-				#[cfg(feature = "log")] {
-					error!("loader failed: {e}");
-				}
+			if let Err(_e) = res {
+				error!("loader failed: {_e}");
 			}
 		}
 	}
@@ -169,9 +166,7 @@ impl Options {
 					.max(button_width);
 				let remove = ui.button_with_size("unload", [width, 0.0]);
 				if remove {
-					#[cfg(feature = "log")] {
-						info!("removing {}...", ext.name);
-					}
+					info!("removing {}...", ext.name);
 					cmd = Some(LoaderCommand::Unload { sig: ext.sig });
 				}
 			}
@@ -245,22 +240,16 @@ impl Options {
 				};
 				match handle {
 					Ok(Some(module)) => unsafe {
-						#[cfg(feature = "log")] {
-							info!("freeing {module:?} forcibly");
-						}
+						info!("freeing {module:?} forcibly");
 
 						let module = Owned::new(module);
 						drop(module)
 					},
 					Err(_e) => {
-						#[cfg(feature = "log")] {
-							warn!("{} not found: {_e}", ext.path.display());
-						}
+						warn!("{} not found: {_e}", ext.path.display());
 					},
 					Ok(None) => {
-						#[cfg(feature = "log")] {
-							info!("{} not found", ext.path.display());
-						}
+						info!("{} not found", ext.path.display());
 					},
 				}
 			}
@@ -350,9 +339,7 @@ impl Options {
 				},
 			};
 			if unload {
-				#[cfg(feature = "log")] {
-					info!("unloading {addon}...");
-				}
+				info!("unloading {addon}...");
 				let sig = addon.def().signature;
 				drop(host);
 				let res = NexusHost::unload_addon(sig);
@@ -361,9 +348,7 @@ impl Options {
 			if !addon.is_loaded() {
 				let load = ui.button_with_size("load", [width, 0.0]);
 				if load {
-					#[cfg(feature = "log")] {
-						info!("loading {addon}...");
-					}
+					info!("loading {addon}...");
 					let sig = addon.def().signature;
 					drop(host);
 					let res = NexusHost::load_addon(sig);
