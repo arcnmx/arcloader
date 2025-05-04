@@ -1,7 +1,7 @@
 use crate::util::{arc::{config_dir, game_dir}, win::WinResult};
 use std::{collections::{BTreeMap, BTreeSet}, ffi::OsStr, fs, io, iter, num::NonZeroU32, ops::Deref, os::windows::fs::FileTypeExt, path::{Path, PathBuf}, sync::{Arc, RwLock}};
 use arcdps::exports;
-#[cfg(feature = "extras")]
+#[cfg(feature = "arcdps-extras")]
 use arcdps::extras::{ExtrasAddonInfo, UserInfoIter};
 use windows::{core::Error as WinError, Win32::Foundation::{ERROR_INDEX_OUT_OF_BOUNDS, ERROR_INVALID_HANDLE, ERROR_THREAD_WAS_SUSPENDED, HMODULE}};
 
@@ -22,7 +22,7 @@ pub struct ExtDir {
 
 impl ExtDir {
 	pub const INFIX_ARCDPS: &'static str = "arcdps_";
-	#[cfg(feature = "nexus-host")]
+	#[cfg(feature = "host-addonapi")]
 	pub const INFIX_NEXUS: &'static str = "nexus_";
 	pub const EXTENSION: &'static str = "dll";
 
@@ -57,7 +57,7 @@ impl ExtDir {
 
 			match f.file_name().as_os_str().to_str() {
 				Some(s) if s.contains(Self::INFIX_ARCDPS) => (),
-				#[cfg(feature = "nexus-host")]
+				#[cfg(feature = "host-addonapi")]
 				Some(s) if s.contains(Self::INFIX_NEXUS) => (),
 				_ => continue,
 			}

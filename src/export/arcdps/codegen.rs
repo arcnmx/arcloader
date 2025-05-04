@@ -23,9 +23,9 @@ macro_rules! export_arcloader {
 			/*combat: exports::evtc,
 			combat_local: exports::combat_local,*/
 
-			/*#[cfg(feature = "extras")]
+			/*#[cfg(feature = "arcdps-extras")]
 			extras_init: exports::extras_init,
-			#[cfg(feature = "extras")]
+			#[cfg(feature = "arcdps-extras")]
 			extras_squad_update: exports::extras_squad_update,*/
 			/*
 			extras_language_changed: exports::extras_language_changed,

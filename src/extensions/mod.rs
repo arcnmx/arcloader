@@ -1,4 +1,4 @@
-#[cfg(feature = "nexus-host")]
+#[cfg(feature = "host-addonapi")]
 pub mod nexus;
 mod loader;
 

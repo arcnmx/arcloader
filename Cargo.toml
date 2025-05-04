@@ -21,22 +21,14 @@ panic = "abort"
 lto = true
 
 [dependencies]
-#anyhow = "1.0.95"
 log = { version = "0.4", optional = true }
-#tokio = { version = "1.43.0", features = [ "full" ] }
-arcdps = { git = "https://github.com/zerthox/arcdps-rs", default-features = false }
+closure-ffi = { version = "0.5", default-features = false, optional = true }
+arcdps = { git = "https://github.com/zerthox/arcdps-rs", default-features = false, optional = true }
+#arcdps-imgui = "0.8"
 nexus = { git = "https://github.com/zerthox/nexus-rs", default-features = false, optional = true }
-gw2_mumble = { git = "https://github.com/zerthox/gw2-mumble-rs", default-features = false, features = ["json"], optional = true }
-#arcdps-imgui = "0.8.0"
+gw2_mumble = { git = "https://github.com/zerthox/gw2-mumble-rs", default-features = false, optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
-#reqwest = { version = "0.12.15", features = [ "stream" ] }
-#tempfile = "3.19.1"
-#bytes = "1.10.1"
-#tokio-stream = "0.1.17"
-#tokio-util = "0.7.14"
-#futures = "0.3.31"
-#chrono = { version = "0.4.40", features = [ "serde", "alloc" ] }
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.60", features = [
 	"Win32_System_Com",
@@ -50,19 +42,29 @@ windows-strings = { version = "0.3.1" }
 [features]
 default = [
 	#"unwind",
-	#"extras",
 	"log",
-	"nexus-host"
-	#"arcdps-codegen"
+	"arcdps",
+	#"addonapi",
+	#"host-arcdps",
+	"host-addonapi"
 ]
-unwind = ["arcdps/unwind"]
-extras = ["arcdps/extras"]
-nexus = ["dep:nexus"]
-mumble = ["dep:gw2_mumble", "nexus/mumble", "serde"]
-nexus-host = ["dep:nexus", "mumble"]
-log = ["dep:log", "arcdps/log", "nexus?/log"]
-serde = ["dep:serde", "dep:serde_json", "arcdps/serde"]
-arcdps-codegen = ["arcdps/export"]
+arcdps = ["dep:arcdps"]
+arcdps-codegen = ["arcdps?/export"]
+arcdps-extras = ["arcdps?/extras"]
+addonapi = ["dep:nexus"]
+host-arcdps = [
+	"dep:arcdps",
+]
+host-addonapi = [
+	"dep:nexus",
+	"mumble",
+	"serde",
+	#"dep:closure-ffi",
+]
+mumble = ["dep:gw2_mumble", "nexus?/mumble"]
+serde = ["dep:serde", "dep:serde_json", "arcdps?/serde", "nexus?/serde", "gw2_mumble?/json"]
+log = ["dep:log", "arcdps?/log", "nexus?/log"]
+unwind = ["arcdps?/unwind"]
 
 [patch."https://github.com/zerthox/gw2-mumble-rs"]
 gw2_mumble = { git = "https://github.com/arcnmx/gw2-mumble-rs" }

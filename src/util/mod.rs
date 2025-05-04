@@ -1,5 +1,6 @@
+#[cfg(any(feature = "arcdps", feature = "host-arcdps"))]
 pub mod arc;
-#[cfg(feature = "nexus")]
+#[cfg(any(feature = "addonapi", feature = "host-addonapi"))]
 pub mod nexus;
 pub mod ffi;
 #[cfg(windows)]

@@ -144,14 +144,14 @@ impl ArcDpsExtension {
 	}
 
 	/// TODO
-	#[cfg(feature = "extras")]
+	#[cfg(feature = "arcdps-extras")]
 	#[inline]
 	pub fn extras(&self) -> &extras::callbacks::Export {
 		&self.extra
 	}
 
 	/// TODO
-	#[cfg(feature = "extras")]
+	#[cfg(feature = "arcdps-extras")]
 	#[inline]
 	pub unsafe fn extras_mut(&mut self) -> &mut extras::callbacks::Export {
 		&mut self.extra
@@ -304,9 +304,9 @@ impl fmt::Debug for ArcDpsExtension {
 
 		if self.has_extra() {
 			match () {
-				#[cfg(feature = "extras")]
+				#[cfg(feature = "arcdps-extras")]
 				_ => f.field("extras", self.extras()),
-				#[cfg(not(feature = "extras"))]
+				#[cfg(not(feature = "arcdps-extras"))]
 				_ => f.field("extra", self.extra()),
 			};
 		}

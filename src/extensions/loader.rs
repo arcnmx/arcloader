@@ -1,6 +1,6 @@
 use crate::{supervisor::Supervisor, util::{arc::{add_extension, remove_extension}, win::{load_library, WinResult}}};
 use std::num::NonZeroU32;
-#[cfg(feature = "extras")]
+#[cfg(feature = "arcdps-extras")]
 use arcdps::extras::{ExtrasAddonInfo, UserInfoIter};
 use windows::{
 	core::{Error as WinError, Owned},
@@ -71,7 +71,7 @@ impl Loader {
 				#[allow(unreachable_patterns)]
 				match loader {
 					AddonLoader::Arcdps => add_extension(module),
-					#[cfg(feature = "nexus-host")]
+					#[cfg(feature = "host-addonapi")]
 					AddonLoader::NexusHost => crate::extensions::nexus::NexusHost::enumerate_addon(module).map(drop),
 					_ => return Err(WinError::new(ERROR_CALL_NOT_IMPLEMENTED.to_hresult(), format!("arcloader {:?} support disabled", loader))),
 				}

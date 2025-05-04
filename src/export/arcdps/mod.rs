@@ -128,7 +128,7 @@ extern_fns! {
 		export::release()
 	}
 
-	#[cfg(feature = "extras")]
+	#[cfg(feature = "ardps-extras")]
 	pub unsafe extern "system" fn arcdps_unofficial_extras_subscriber_init(
 		addon: *const extras::RawExtrasAddonInfo,
 		sub: *mut extras::ExtrasSubscriberInfo,

@@ -1,15 +1,17 @@
 use std::{ffi::CStr, num::NonZeroU32, sync::atomic::{AtomicBool, Ordering}};
 use crate::{supervisor::Supervisor, extensions::Loader, ui::Options};
-#[cfg(feature = "nexus-host")]
+#[cfg(feature = "host-addonapi")]
 use crate::extensions::nexus::NexusHost;
 use ::arcdps::{
 	evtc::{Agent, Event}, imgui::Ui,
 };
-#[cfg(feature = "extras")]
+#[cfg(feature = "arcdps-extras")]
 use arcdps::extras::{ExtrasAddonInfo, UserInfoIter};
 
+#[cfg(feature = "arcdps")]
 pub mod arcdps;
 
+#[cfg(feature = "arcdps")]
 pub use self::arcdps::{imgui_ctx, allocator_fns};
 
 pub const SIG: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(
@@ -38,7 +40,7 @@ pub unsafe fn init() -> Result<(), &'static CStr> {
 	Supervisor::init();
 	Loader::init();
 	Options::init();
-	#[cfg(feature = "nexus-host")] {
+	#[cfg(feature = "host-addonapi")] {
 		NexusHost::init();
 	}
 
@@ -52,7 +54,7 @@ pub fn release() {
 		debug!("arcloader *hides*");
 	}
 
-	#[cfg(feature = "nexus-host")] {
+	#[cfg(feature = "host-addonapi")] {
 		NexusHost::unload();
 	}
 	Options::unload();
@@ -82,7 +84,7 @@ pub fn imgui(ui: &Ui, not_charsel_or_loading: bool) {
 		return
 	}
 
-	#[cfg(feature = "nexus-host")] {
+	#[cfg(feature = "host-addonapi")] {
 		NexusHost::imgui_present(ui, not_charsel_or_loading);
 	}
 	Supervisor::imgui_present();
@@ -101,10 +103,10 @@ pub fn options_windows(ui: &Ui, window_name: Option<&str>) -> bool {
 	true
 }
 
-#[cfg(feature = "extras")]
+#[cfg(feature = "arcdps-extras")]
 pub fn extras_init(extras: ExtrasAddonInfo, idk: Option<&str>) {
 }
 
-#[cfg(feature = "extras")]
+#[cfg(feature = "arcdps-extras")]
 pub fn extras_squad_update(users: UserInfoIter) {
 }

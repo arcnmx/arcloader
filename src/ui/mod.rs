@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::{BTreeSet, HashSet}, ffi::OsString, num::N
 use arcdps::{
 	 exports::{self, CoreColor}, imgui::{Id, StyleColor, TableColumnSetup, TableFlags, Ui}
 };
-#[cfg(feature = "extras")]
+#[cfg(feature = "arcdps-extras")]
 use arcdps::extras::{ExtrasAddonInfo, UserInfoIter};
 use windows::core::Owned;
 use windows_strings::HSTRING;
@@ -88,7 +88,7 @@ impl Options {
 			debug!("arcloader command: {cmd:?}...");
 		}
 
-		#[cfg(feature = "nexus-host")] {
+		#[cfg(feature = "host-addonapi")] {
 			self.extensions_options_nexus(ui);
 		}
 
@@ -132,7 +132,7 @@ impl Options {
 			cmd = Some(c)
 		}
 
-		#[cfg(feature = "nexus-host")]
+		#[cfg(feature = "host-addonapi")]
 		if let Some(()) = self.extensions_table_nexus(ui, &sv, seen) {
 		}
 
@@ -315,7 +315,7 @@ impl Options {
 		cmd
 	}
 
-	#[cfg(feature = "nexus-host")]
+	#[cfg(feature = "host-addonapi")]
 	pub fn extensions_table_nexus(&mut self, ui: &Ui, _sv: &Supervisor, seen: &mut HashSet<OsString>) -> Option<()> {
 		use nexus::AddonFlags;
 		use crate::extensions::nexus::{NexusHost, NEXUS_HOST};
@@ -428,7 +428,7 @@ impl Options {
 		None
 	}
 
-	#[cfg(feature = "nexus-host")]
+	#[cfg(feature = "host-addonapi")]
 	pub fn extensions_options_nexus(&mut self, ui: &Ui) {
 		use nexus::gui::RenderType;
 		use crate::extensions::nexus::{NexusAddonCache, NEXUS_HOST};
