@@ -1,0 +1,58 @@
+[package]
+name = "arcloader"
+authors = [ "mew" ]
+description = "Nope"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(todo)'] }
+
+[dependencies]
+log = { version = "0.4", optional = true }
+closure-ffi = { version = "0.5", default-features = false, optional = true }
+arcdps = { git = "https://github.com/zerthox/arcdps-rs", default-features = false, optional = true }
+#arcdps-imgui = "0.8"
+nexus = { git = "https://github.com/zerthox/nexus-rs", default-features = false, optional = true }
+gw2_mumble = { git = "https://github.com/zerthox/gw2-mumble-rs", default-features = false, optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.60", features = [
+	"Win32_System_Com",
+	"Win32_Graphics_Imaging",
+	"Win32_Graphics_Direct3D",
+	"Win32_Graphics_Direct3D11",
+	"Win32_Graphics_Dxgi_Common",
+] }
+windows-strings = { version = "0.3.1" }
+
+[features]
+default = [
+	#"unwind",
+	"log",
+	"arcdps",
+	#"addonapi",
+	#"host-arcdps",
+	"host-addonapi"
+]
+arcdps = ["dep:arcdps"]
+arcdps-codegen = ["arcdps?/export"]
+arcdps-extras = ["arcdps?/extras"]
+addonapi = ["dep:nexus"]
+host-arcdps = [
+	"dep:arcdps",
+]
+host-addonapi = [
+	"dep:nexus",
+	"mumble",
+	"serde",
+	#"dep:closure-ffi",
+]
+mumble = ["dep:gw2_mumble", "nexus?/mumble"]
+serde = ["dep:serde", "dep:serde_json", "arcdps?/serde", "nexus?/serde", "gw2_mumble?/json"]
+log = ["dep:log", "arcdps?/log", "nexus?/log"]
+unwind = ["arcdps?/unwind"]

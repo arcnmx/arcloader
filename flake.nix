@@ -95,7 +95,7 @@
 
     packages = {
       default = packages.arcloader;
-      arcloader = pkgs-w64.callPackage ./derivation.nix {
+      arcloader = pkgs-w64.callPackage ./loader/derivation.nix {
         ${if !pkgs-w64.buildPlatform.isWindows then "rustPlatform" else null} = channel-w64.rustPlatform;
         #source = self.lib.crate.src;
         inherit (legacyPackages) source;
@@ -110,6 +110,8 @@
       crate = rust.lib.importCargo {
         path = ./Cargo.toml;
         inherit (import ./lock.nix) outputHashes;
+        name = "arcloader";
+        version = "0.1.0";
       };
       cxxflags = [
         "-Oz"
