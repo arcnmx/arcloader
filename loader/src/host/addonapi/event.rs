@@ -13,6 +13,7 @@ use std::{ffi::{c_char, c_void, CStr}, mem::MaybeUninit};
 
 impl NexusHost {
 	pub const EV_ADDON_LOADED: &'static CStr = cstr!("EV_ADDON_LOADED");
+	pub const EV_WINDOW_RESIZED: &'static CStr = cstr!("EV_WINDOW_RESIZED");
 	pub const EV_MUMBLE_IDENTITY_UPDATED: &'static CStr = cstr!("EV_MUMBLE_IDENTITY_UPDATED");
 
 	pub const EV_ARCDPS_COMBATEVENT_LOCAL_RAW: &'static CStr = cstr!("EV_ARCDPS_COMBATEVENT_LOCAL_RAW");

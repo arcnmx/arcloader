@@ -41,7 +41,7 @@ pub fn allocator_fns() -> (Option<MallocFn>, Option<FreeFn>, *mut c_void) {
 #[cfg(not(feature = "arcdps-codegen"))]
 pub mod extern_ {
 	use std::{alloc::{GlobalAlloc, Layout}, ffi::{c_char, c_void, CStr}, ptr::{self, NonNull}};
-	use windows::Win32::Foundation::HMODULE;
+	use windows::Win32::Foundation::{HMODULE, HWND, LPARAM, WPARAM};
 	use windows_strings::PCSTR;
 	use arcdps::{
 		imgui::sys as imgui_sys,
@@ -77,8 +77,8 @@ pub mod extern_ {
 		imgui: Some(imgui),
 		options_end: Some(options_end),
 		options_windows: None,
-		wnd_filter: None,
-		wnd_nofilter: None,
+		wnd_filter: Some(wnd_filter),
+		wnd_nofilter: Some(wnd_nofilter),
 	};
 
 	#[no_mangle]
@@ -156,6 +156,14 @@ extern_fns! {
 			revision,
 			true,
 		)
+	}
+
+	unsafe extern "C" fn wnd_filter(window: HWND, message: u32, param_w: WPARAM, param_l: LPARAM) -> u32 {
+		export::wnd_filter(window, message, param_w, param_l)
+	}
+
+	unsafe extern "C" fn wnd_nofilter(window: HWND, message: u32, param_w: WPARAM, param_l: LPARAM) -> u32 {
+		export::wnd_nofilter(window, message, param_w, param_l)
 	}
 
 	unsafe extern "C" fn imgui(not_charsel_or_loading: u32) {

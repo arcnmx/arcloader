@@ -7,6 +7,7 @@ use ::arcdps::{
 };
 #[cfg(feature = "arcdps-extras")]
 use arcdps::extras::{ExtrasAddonInfo, UserInfoIter};
+use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows_strings::PCSTR;
 
 #[cfg(feature = "arcdps")]
@@ -71,11 +72,23 @@ pub fn evtc(event: Option<&Event>, src: Option<&Agent>, dst: Option<&Agent>, ski
 	}
 }
 
-pub fn wnd_nofilter(vkc: usize, pressed: bool, repeat: bool) -> bool {
-	true
+pub fn wnd_nofilter(window: HWND, message: u32, param_w: WPARAM, param_l: LPARAM) -> u32 {
+	match ARC_LOADED.load(Ordering::Relaxed) {
+		#[cfg(feature = "host-addonapi")]
+		true => NexusHost::wndproc_nofilter(window, message, param_w, param_l),
+		_ => message,
+	}
 }
 
-pub fn wnd_filter(vkc: usize, pressed: bool, repeat: bool) -> bool {
+pub fn wnd_filter(window: HWND, message: u32, param_w: WPARAM, param_l: LPARAM) -> u32 {
+	match ARC_LOADED.load(Ordering::Relaxed) {
+		#[cfg(feature = "host-addonapi")]
+		true => NexusHost::wndproc_filter(window, message, param_w, param_l),
+		_ => message,
+	}
+}
+
+fn wnd_press(vkc: usize, pressed: bool, repeat: bool) -> bool {
 	true
 }
 
