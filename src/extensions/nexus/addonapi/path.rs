@@ -80,9 +80,7 @@ fn cstring_try_dir(dir: Option<&Path>, fallback: &'static CStr) -> CString {
 	let dir = dir
 		.and_then(|d| CString::new(d.to_string_lossy().into_owned()).ok())
 		.unwrap_or_else(|| {
-			#[cfg(feature = "log")] {
-				warn!("addonapi dir not available");
-			}
+			warn!("addonapi dir not available");
 			fallback.to_owned()
 		});
 	cstring_dir(dir)

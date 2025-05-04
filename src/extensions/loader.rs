@@ -88,17 +88,13 @@ impl Loader {
 				let module = match remove_extension(sig) {
 					Err(()) => Err(ERROR_NOT_FOUND),
 					Ok(handle) => {
-						#[cfg(feature = "log")] {
-							info!("removed {sig:08x}");
-						}
+						info!("removed {sig:08x}");
 						Ok(handle)
 					},
 				}?;
 
 				if let Err(_e) = Supervisor::notify_arcdps_unload(sig, Some(module)) {
-					#[cfg(feature = "log")] {
-						warn!("unload failed to notify supervisor: {_e}");
-					}
+					warn!("unload failed to notify supervisor: {_e}");
 				}
 
 				Ok(())

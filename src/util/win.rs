@@ -17,9 +17,7 @@ pub fn get_module_path(handle: Option<HMODULE>) -> WinResult<OsString> {
 		Err(e) => return Err(e),
 		Ok(len @ 0..=128) => return Ok(OsString::from_wide(&file_name_buf[..len])),
 		Ok(_) => {
-			#[cfg(feature = "log")] {
-				log::debug!("weird, I didn't ask for that");
-			}
+			debug!("weird, I didn't ask for that");
 		},
 	}
 	

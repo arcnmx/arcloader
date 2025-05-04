@@ -1,11 +1,3 @@
-#[cfg(any(feature = "arcdps", feature = "host-arcdps"))]
-pub mod arc;
-#[cfg(any(feature = "addonapi", feature = "host-addonapi"))]
-pub mod nexus;
-pub mod ffi;
-#[cfg(windows)]
-pub mod win;
-
 macro_rules! cstr {
 	($($s:tt)*) => {
 		unsafe {
@@ -110,3 +102,11 @@ macro_rules! warn {
 macro_rules! error {
 	($($tt:tt)*) => {arc_log!{!!;error($($tt)*)}};
 }
+
+#[cfg(any(feature = "arcdps", feature = "host-arcdps"))]
+pub mod arc;
+#[cfg(any(feature = "addonapi", feature = "host-addonapi"))]
+pub mod nexus;
+pub mod ffi;
+#[cfg(windows)]
+pub mod win;

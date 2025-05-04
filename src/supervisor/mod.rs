@@ -43,9 +43,7 @@ impl ExtDir {
 					continue,
 				Ok(f) => f,
 				Err(_e) => {
-					#[cfg(feature = "log")] {
-						warn!("failed to enumerate {}: {}", self.path.display(), _e);
-					}
+					warn!("failed to enumerate {}: {}", self.path.display(), _e);
 					continue
 				},
 			};
@@ -114,9 +112,7 @@ impl ExtArcDesc {
 			path: match get_module_path(Some(ext.module())) {
 				Ok(p) => Some(PathBuf::from(p)),
 				Err(_e) => {
-					#[cfg(feature = "log")] {
-						warn!("no path found for arcdps extension {}: {}", ext, _e);
-					}
+					warn!("no path found for arcdps extension {}: {}", ext, _e);
 					None
 				},
 			},
@@ -232,13 +228,9 @@ impl Supervisor {
 
 		for sig in extensions_unloaded {
 			if let Some(_ext) = self.arcdps.remove(&sig) {
-				#[cfg(feature = "log")] {
-					info!("lost track of arcdps extension {}", _ext.desc.name);
-				}
+				info!("lost track of arcdps extension {}", _ext.desc.name);
 			} else {
-				#[cfg(feature = "log")] {
-					warn!("what happened to arcdps extension {:08x}?", sig);
-				}
+				warn!("what happened to arcdps extension {:08x}?", sig);
 			}
 		}
 
@@ -250,9 +242,7 @@ impl Supervisor {
 			.flat_map(|dir| match dir.enumerate_extensions() {
 				Ok(dir) => Some(dir),
 				Err(_e) => {
-					#[cfg(feature = "log")] {
-						error!("failed to enumerate {}: {_e}", dir.path.display());
-					}
+					error!("failed to enumerate {}: {_e}", dir.path.display());
 					None
 				},
 			}).flatten();
@@ -271,9 +261,7 @@ impl Supervisor {
 		let mut sv = match SUPERVISOR.write() {
 			Ok(s) => s,
 			Err(_e) => {
-				#[cfg(feature = "log")] {
-					warn!("supervisor poisoned, providing antidote...");
-				}
+				warn!("supervisor poisoned, providing antidote...");
 				SUPERVISOR.clear_poison();
 				// failure shouldn't be possible now
 				let mut sv = SUPERVISOR.write()

@@ -59,9 +59,8 @@ impl NexusHost {
 		}
 
 		let ml = gw2_mumble::MumbleLink::new();
-		#[cfg(feature = "log")]
-		if let Err(e) = &ml {
-			error!("failed to open MumbleLink: {e}");
+		if let Err(_e) = &ml {
+			error!("failed to open MumbleLink: {_e}");
 		}
 		let ml = ml.ok();
 		if let Some(ml) = &ml {
@@ -160,9 +159,8 @@ impl NexusHost {
 		for addon in self.addons.values_mut() {
 			if addon.can_hotload() {
 				let _res = addon.unload();
-				#[cfg(feature = "log")]
-				if let Err(e) = _res {
-					error!("{addon} failed to unload at shutdown: {e}");
+				if let Err(_e) = _res {
+					error!("{addon} failed to unload at shutdown: {_e}");
 				}
 			}
 		}
@@ -188,9 +186,7 @@ impl NexusHost {
 		let res = addon.load();
 
 		if let Err(_e) = &res {
-			#[cfg(feature = "log")] {
-				error!("{addon} failed to load: {_e}");
-			}
+			error!("{addon} failed to load: {_e}");
 
 			Self::lock_write().addons.remove(&addon.signature);
 		} else {
@@ -230,9 +226,7 @@ impl NexusHost {
 		let res = addon.unload();
 
 		if let Err(_e) = &res {
-			#[cfg(feature = "log")] {
-				error!("{addon} failed to unload: {_e}");
-			}
+			error!("{addon} failed to unload: {_e}");
 		}
 
 		Self::lock_write().addons.remove(&addon.signature);

@@ -24,9 +24,7 @@ pub const SIG_DEBUG: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(
 pub static ARC_LOADED: AtomicBool = AtomicBool::new(false);
 
 pub unsafe fn init() -> Result<(), &'static CStr> {
-	#[cfg(feature = "log")] {
-		debug!("arcloader *waves*");
-	}
+	debug!("arcloader *waves*");
 
 	if ARC_LOADED.load(Ordering::Relaxed) {
 		return Err(cstr!("extension loaded twice"))
@@ -50,9 +48,7 @@ pub unsafe fn init() -> Result<(), &'static CStr> {
 }
 
 pub fn release() {
-	#[cfg(feature = "log")] {
-		debug!("arcloader *hides*");
-	}
+	debug!("arcloader *hides*");
 
 	#[cfg(feature = "host-addonapi")] {
 		NexusHost::unload();

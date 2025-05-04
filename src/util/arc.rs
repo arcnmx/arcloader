@@ -243,9 +243,7 @@ impl ArcDpsExtension {
 			},
 			Ok(h) => h,
 			Err(_e) => {
-				#[cfg(feature = "log")] {
-					log::warn!("failed to determine handle for {}: {}", self, _e);
-				}
+				warn!("failed to determine handle for {}: {}", self, _e);
 				None
 			},
 		}
