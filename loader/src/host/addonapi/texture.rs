@@ -678,7 +678,7 @@ impl NexusHost {
 				TextureEntry::Upload { storage, .. } => Some(&*storage),
 				TextureEntry::Upload { callback: cb, .. } => {
 					match cb {
-						&Some(cb) if cb == callback =>
+						&Some(cb) if cb != callback =>
 							error!("another caller wants to load {cb:?}'s texture {id:?}, ignoring {callback:?} (you got here late bud)"),
 						_ => (),
 					}
@@ -726,7 +726,9 @@ impl NexusHost {
 				},
 			};
 			match prev {
-				None | Some(TextureEntry::Failed) => (),
+				None | Some(TextureEntry::Failed) => {
+					cache.upload_count = cache.upload_count.saturating_add(1);
+				},
 				Some(t) => {
 					error!("texture {id:?} replacing {t:?}, this is bad");
 				},
