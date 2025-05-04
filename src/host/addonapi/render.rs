@@ -4,7 +4,7 @@ use windows::core::InterfaceRef;
 use windows::Win32::Foundation::ERROR_API_UNAVAILABLE;
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
 use windows::Win32::Graphics::Dxgi::IDXGISwapChain;
-use crate::extensions::nexus::NexusHost;
+use crate::host::addonapi::NexusHost;
 use crate::util::win::{WinResult, WinError};
 
 impl NexusHost {

@@ -1,7 +1,7 @@
 use std::{ffi::CStr, num::NonZeroU32, sync::atomic::{AtomicBool, Ordering}};
 use crate::{supervisor::Supervisor, extensions::Loader, ui::Options};
 #[cfg(feature = "host-addonapi")]
-use crate::extensions::nexus::NexusHost;
+use crate::host::addonapi::NexusHost;
 use ::arcdps::{
 	evtc::{Agent, Event}, imgui::Ui,
 };

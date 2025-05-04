@@ -1,5 +1,5 @@
 use crate::{
-	extensions::nexus::NexusHost,
+	host::addonapi::NexusHost,
 	util::ffi::cstr_opt,
 };
 use nexus::{font::RawFontReceive, imgui::sys::ImFontConfig};

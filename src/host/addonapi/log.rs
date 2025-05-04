@@ -1,5 +1,5 @@
 use crate::{
-	extensions::nexus::NexusHost,
+	host::addonapi::NexusHost,
 	util::ffi::cstr_opt,
 };
 use nexus::log::LogLevel;

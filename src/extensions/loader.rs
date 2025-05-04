@@ -72,7 +72,7 @@ impl Loader {
 				match loader {
 					AddonLoader::Arcdps => add_extension(module),
 					#[cfg(feature = "host-addonapi")]
-					AddonLoader::NexusHost => crate::extensions::nexus::NexusHost::enumerate_addon(module).map(drop),
+					AddonLoader::NexusHost => crate::host::addonapi::NexusHost::enumerate_addon(module).map(drop),
 					_ => return Err(WinError::new(ERROR_CALL_NOT_IMPLEMENTED.to_hresult(), format!("arcloader {:?} support disabled", loader))),
 				}
 			},

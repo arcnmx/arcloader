@@ -1,5 +1,5 @@
 use crate::{
-	extensions::nexus::NexusHost,
+	host::addonapi::NexusHost,
 	util::{ffi::{cstr_opt, nonnull_ref}, win::{find_resource, WinError, WinResult, MAKERESOURCEA}},
 };
 use nexus::texture::{RawTextureReceiveCallback, Texture};

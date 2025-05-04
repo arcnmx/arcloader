@@ -318,7 +318,7 @@ impl Options {
 	#[cfg(feature = "host-addonapi")]
 	pub fn extensions_table_nexus(&mut self, ui: &Ui, _sv: &Supervisor, seen: &mut HashSet<OsString>) -> Option<()> {
 		use nexus::AddonFlags;
-		use crate::extensions::nexus::{NexusHost, NEXUS_HOST};
+		use crate::host::addonapi::{NexusHost, NEXUS_HOST};
 
 		let colours = Self::colours();
 		let button_width = ui.current_font().fallback_advance_x * 10.0;
@@ -431,7 +431,7 @@ impl Options {
 	#[cfg(feature = "host-addonapi")]
 	pub fn extensions_options_nexus(&mut self, ui: &Ui) {
 		use nexus::gui::RenderType;
-		use crate::extensions::nexus::{NexusAddonCache, NEXUS_HOST};
+		use crate::host::addonapi::{NexusAddonCache, NEXUS_HOST};
 
 		ui.separator();
 

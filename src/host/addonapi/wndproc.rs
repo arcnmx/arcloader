@@ -1,7 +1,7 @@
 use nexus::wnd_proc::RawWndProcCallback;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 
-use crate::extensions::nexus::NexusHost;
+use crate::host::addonapi::NexusHost;
 
 impl NexusHost {
 	pub unsafe extern "C-unwind" fn addonapi_wndproc_register(wnd_proc_callback: RawWndProcCallback) {

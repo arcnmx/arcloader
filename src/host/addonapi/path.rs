@@ -1,5 +1,5 @@
 use crate::{
-	extensions::nexus::NexusHost,
+	host::addonapi::NexusHost,
 	util::{arc::{config_dir, game_dir}, ffi::cstr_opt},
 };
 use std::{borrow::Cow, ffi::{c_char, CStr, CString}, path::{Path, PathBuf}, sync::{Arc, OnceLock}};

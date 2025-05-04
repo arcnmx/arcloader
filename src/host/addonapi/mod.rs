@@ -4,10 +4,12 @@ use nexus::{DataLinkApi, EventApi, FontApi, GameBindApi, InputBindsApi, Localiza
 use windows::{core::Error as WinError, Win32::Foundation::ERROR_API_UNAVAILABLE};
 
 pub mod host;
+pub mod addon;
 pub mod versioned;
 pub use self::{
 	versioned::AddonApiV,
 	host::{NexusHost, NEXUS_HOST},
+	addon::{NexusAddon, NexusAddonCache},
 };
 
 pub use nexus::imgui;

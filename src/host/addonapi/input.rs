@@ -1,6 +1,6 @@
 use nexus::keybind::{Keybind, RawKeybindHandler, RawKeybindHandlerOld};
 use crate::{
-	extensions::nexus::{NexusAddonCache, NexusHost},
+	host::addonapi::{NexusAddonCache, NexusHost},
 	util::ffi::cstr_opt,
 };
 use std::ffi::c_char;

@@ -4,11 +4,9 @@ use nexus::{data_link::NexusLink, event::MumbleIdentityUpdate, gui::RenderType, 
 use windows::{core::Owned, Win32::Foundation::{ERROR_NOT_FOUND, HMODULE}};
 
 use crate::{
-	extensions::nexus::{
-		addonapi::{
-			data_link::{MumbleIdentity, MUMBLE_LINK},
-			texture::TextureCache,
-		},
+	host::addonapi::{
+		data_link::{MumbleIdentity, MUMBLE_LINK},
+		texture::TextureCache,
 		NexusAddon, NexusAddonCache
 	},
 	util::{nexus::NexusId, win::{get_module_from_ptr, WinError, WinResult}},
@@ -245,7 +243,7 @@ impl NexusHost {
 		}
 		let res = get_module_from_ptr(p as *const _)
 			.ok().flatten()
-			.and_then(|module| self.addons.values().find(|a| *a.module == module));
+			.and_then(|module| self.addons.values().find(|a| a.module() == module));
 		if res.is_none() {
 			debug!("addon cache lookup failed");
 		}

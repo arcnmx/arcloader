@@ -3,7 +3,7 @@ use nexus::{data_link::NexusLink, event::MumbleIdentityUpdate};
 use windows_strings::PCWSTR;
 
 use crate::{
-	extensions::nexus::NexusHost,
+	host::addonapi::NexusHost,
 	util::{ffi::{cstr_opt, nonnull_ref_unchecked}, win::WideUtf8Reader},
 };
 use std::{ffi::{c_char, c_void, CStr, OsString}, hash::{DefaultHasher, Hash, Hasher}, mem::MaybeUninit, os::windows::ffi::OsStringExt, ptr::{self, NonNull}, sync::OnceLock};

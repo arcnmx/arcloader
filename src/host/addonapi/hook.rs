@@ -1,5 +1,5 @@
 use nexus::hook::HookStatus;
-use crate::extensions::nexus::NexusHost;
+use crate::host::addonapi::NexusHost;
 use std::ffi::c_void;
 
 impl NexusHost {

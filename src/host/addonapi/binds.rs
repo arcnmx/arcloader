@@ -1,5 +1,5 @@
 use nexus::gamebind::GameBind;
-use crate::extensions::nexus::NexusHost;
+use crate::host::addonapi::NexusHost;
 
 impl NexusHost {
 	pub unsafe extern "C-unwind" fn addonapi_game_bind_press_async(bind: GameBind) {

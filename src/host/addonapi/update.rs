@@ -1,5 +1,5 @@
 use crate::{
-	extensions::nexus::NexusHost,
+	host::addonapi::NexusHost,
 	util::ffi::cstr_opt,
 };
 use std::ffi::c_char;
