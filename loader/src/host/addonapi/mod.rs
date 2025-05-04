@@ -10,6 +10,7 @@ pub use self::{
 	versioned::AddonApiV,
 	host::{NexusHost, NEXUS_HOST},
 	addon::{NexusAddon, NexusAddonCache},
+	data_link::MumbleIdentity,
 };
 
 pub use nexus::imgui;
@@ -190,7 +191,7 @@ mod update;
 mod event;
 mod wndproc;
 mod hook;
-mod input;
+pub mod input;
 mod binds;
 pub mod data_link;
 mod font;

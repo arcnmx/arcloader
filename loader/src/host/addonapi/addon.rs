@@ -1,5 +1,5 @@
 use std::{collections::{HashMap, HashSet}, ffi::{c_char, CString}, fmt, ops::Deref, sync::{atomic::{AtomicBool, Ordering}, Arc, RwLock, RwLockReadGuard, RwLockWriteGuard}};
-use nexus::{event::RawEventConsumeUnknown, gui::{RawGuiRender, RenderType}, keybind::RawKeybindHandler};
+use nexus::{event::RawEventConsumeUnknown, gui::{RawGuiRender, RenderType}};
 use windows::{core::{Error as WinError, Owned}, Win32::Foundation::{ERROR_CALL_NOT_IMPLEMENTED, HMODULE}};
 use crate::host::addonapi::{NexusHost, AddonApiV};
 use crate::util::{nexus::{get_addon_def, AddonDesc}, win::WinResult};
@@ -118,7 +118,6 @@ pub struct NexusAddonCache {
 	pub event_handlers: HashMap<CString, HashSet<RawEventConsumeUnknown>>,
 	pub renderers: HashMap<RenderType, HashSet<RawGuiRender>>,
 	pub shared_data: HashMap<CString, Box<[u8]>>,
-	pub key_binds: HashMap<CString, RawKeybindHandler>,
 }
 
 impl NexusAddonCache {

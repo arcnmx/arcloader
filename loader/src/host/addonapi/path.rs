@@ -46,7 +46,7 @@ impl NexusHost {
 		};
 		let dir = cstring_try_dir(Some(&dir), FALLBACK);
 
-		log::warn!("produced {:?}", dir);
+		trace!("produced {:?}", dir);
 
 		let dir_ptr = Self::cache_write_with(name_c as *const _, move |mut cache| {
 			*cache.cstrings.entry(Arc::new(dir))

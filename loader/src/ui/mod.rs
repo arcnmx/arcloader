@@ -371,8 +371,11 @@ impl Options {
 				}
 			}
 			if ui.button("whee") {
-				for (c, cb) in &NexusHost::fallback_cache().read().unwrap().key_binds {
-					cb(c.as_ptr(), false);
+				let keybinds = crate::host::addonapi::input::InputBinds::lock_read();
+				for (k, regs) in &keybinds.binds {
+					for reg in regs {
+						(reg.callback)(reg.id.as_ptr(), false);
+					}
 				}
 			}
 			ui.table_next_column();
