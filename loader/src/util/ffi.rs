@@ -1,11 +1,19 @@
 use std::{
 	ffi::{CStr, c_char},
-	ptr::NonNull,
+	ptr::{self, NonNull},
 };
 
 pub unsafe fn cstr_opt<'a>(s: &'a *const c_char) -> Option<&'a CStr> {
 	NonNull::new(*s as *mut c_char)
 		.map(|p| CStr::from_ptr(p.as_ptr() as *const c_char))
+}
+
+pub fn cstr_write(dst: &mut [c_char], src: &CStr) -> usize {
+	let len = dst.len().min(src.to_bytes().len());
+	unsafe {
+		ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), len);
+	}
+	len
 }
 
 pub fn nonnull_ref<P: ?Sized>(p: &P) -> NonNull<P> {

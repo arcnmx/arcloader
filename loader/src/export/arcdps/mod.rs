@@ -40,12 +40,14 @@ pub fn allocator_fns() -> (Option<MallocFn>, Option<FreeFn>, *mut c_void) {
 
 #[cfg(not(feature = "arcdps-codegen"))]
 pub mod extern_ {
-	use std::{alloc::{GlobalAlloc, Layout}, ffi::{c_char, c_void, CStr}, ptr};
+	use std::{alloc::{GlobalAlloc, Layout}, ffi::{c_char, c_void, CStr}, ptr::{self, NonNull}};
 	use windows::Win32::Foundation::HMODULE;
+	use windows_strings::PCSTR;
 	use arcdps::{
 		imgui::sys as imgui_sys,
 		callbacks::ArcDpsExport,
 		__macro::{MallocFn, FreeFn, init as arcdps_rs_init, ui as imgui_ui},
+		Event, Agent,
 	};
 	use crate::{export::{self, arcdps::SIG}, util::arc::{InitFn, ReleaseFn}};
 
@@ -70,8 +72,8 @@ pub mod extern_ {
 		imgui_version: IMGUI_VERSION_20210202,
 		out_name: NAME.as_ptr() as *const _,
 		out_build: BUILD.as_ptr() as *const _,
-		combat: None,
-		combat_local: None,
+		combat: Some(combat),
+		combat_local: Some(combat_local),
 		imgui: Some(imgui),
 		options_end: Some(options_end),
 		options_windows: None,
@@ -110,6 +112,52 @@ pub mod extern_ {
 	}
 
 extern_fns! {
+	unsafe extern "C" fn combat(
+		cbtevent: *const Event,
+		src: *const Agent,
+		dst: *const Agent,
+		skillname: *const c_char,
+		id: u64,
+		revision: u64
+	) {
+		let ev = NonNull::new(cbtevent as *mut Event);
+		let src = NonNull::new(src as *mut Agent);
+		let dst = NonNull::new(dst as *mut Agent);
+		let skillname = PCSTR::from_raw(skillname as *const _);
+		export::evtc(
+			ev.map(|e| &*e.as_ptr()),
+			src.map(|e| &*e.as_ptr()),
+			dst.map(|e| &*e.as_ptr()),
+			skillname,
+			id,
+			revision,
+			false,
+		)
+	}
+
+	unsafe extern "C" fn combat_local(
+		cbtevent: *const Event,
+		src: *const Agent,
+		dst: *const Agent,
+		skillname: *const c_char,
+		id: u64,
+		revision: u64
+	) {
+		let ev = NonNull::new(cbtevent as *mut Event);
+		let src = NonNull::new(src as *mut Agent);
+		let dst = NonNull::new(dst as *mut Agent);
+		let skillname = PCSTR::from_raw(skillname as *const _);
+		export::evtc(
+			ev.map(|e| &*e.as_ptr()),
+			src.map(|e| &*e.as_ptr()),
+			dst.map(|e| &*e.as_ptr()),
+			skillname,
+			id,
+			revision,
+			true,
+		)
+	}
+
 	unsafe extern "C" fn imgui(not_charsel_or_loading: u32) {
 		export::imgui(&imgui_ui(), not_charsel_or_loading != 0)
 	}
@@ -128,7 +176,7 @@ extern_fns! {
 		export::release()
 	}
 
-	#[cfg(feature = "ardps-extras")]
+	#[cfg(feature = "arcdps-extras")]
 	pub unsafe extern "system" fn arcdps_unofficial_extras_subscriber_init(
 		addon: *const extras::RawExtrasAddonInfo,
 		sub: *mut extras::ExtrasSubscriberInfo,

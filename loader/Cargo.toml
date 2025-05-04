@@ -39,7 +39,7 @@ default = [
 	#"host-arcdps",
 	"host-addonapi"
 ]
-arcdps = ["dep:arcdps"]
+arcdps = ["dep:arcdps", "nexus?/arcdps"]
 arcdps-codegen = ["arcdps?/export"]
 arcdps-extras = ["arcdps?/extras"]
 addonapi = ["dep:nexus"]

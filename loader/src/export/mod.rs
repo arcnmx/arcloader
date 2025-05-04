@@ -1,4 +1,4 @@
-use std::{ffi::CStr, num::NonZeroU32, sync::atomic::{AtomicBool, Ordering}};
+use std::{ffi::{c_char, CStr}, num::NonZeroU32, ptr::NonNull, sync::atomic::{AtomicBool, Ordering}};
 use crate::{supervisor::Supervisor, extensions::Loader, ui::Options};
 #[cfg(feature = "host-addonapi")]
 use crate::host::addonapi::NexusHost;
@@ -7,6 +7,7 @@ use ::arcdps::{
 };
 #[cfg(feature = "arcdps-extras")]
 use arcdps::extras::{ExtrasAddonInfo, UserInfoIter};
+use windows_strings::PCSTR;
 
 #[cfg(feature = "arcdps")]
 pub mod arcdps;
@@ -64,7 +65,10 @@ pub fn update_url() -> Option<String> {
 	None
 }
 
-pub fn evtc(event: Option<&Event>, src: Option<&Agent>, dst: Option<&Agent>, skill_name: Option<&str>, id: u64, revision: u64) {
+pub fn evtc(event: Option<&Event>, src: Option<&Agent>, dst: Option<&Agent>, skill_name: PCSTR, id: u64, revision: u64, is_local: bool) {
+	#[cfg(feature = "host-addonapi")] {
+		NexusHost::evtc(event, src, dst, skill_name, id, revision, is_local);
+	}
 }
 
 pub fn wnd_nofilter(vkc: usize, pressed: bool, repeat: bool) -> bool {

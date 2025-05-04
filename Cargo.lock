@@ -306,6 +306,7 @@ name = "nexus"
 version = "0.8.0"
 source = "git+https://github.com/arcnmx/nexus-rs#ff14162c871596f6de6376c5a29172e115b1f39a"
 dependencies = [
+ "arcdps",
  "arcdps-imgui",
  "bitflags 2.9.0",
  "gw2_mumble",
