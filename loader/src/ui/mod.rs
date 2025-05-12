@@ -481,3 +481,10 @@ impl Options {
 		drop(header);
 	}
 }
+
+pub fn imgui_id_cstr(id: &CStr) -> Id {
+	match id.to_str() {
+		Ok(id) => Id::Str(id),
+		_ => Id::Ptr(id.as_ptr() as *const _),
+	}
+}

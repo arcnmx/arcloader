@@ -6,6 +6,7 @@ use crate::{
 	host::addonapi::{
 		data_link::{MumbleIdentity, MumbleLinkProvider, NexusLinkProvider},
 		texture::TextureCache,
+		quick_access::{ui::QuickAccessMenuUi, QuickAccessMenu},
 		NexusAddon, NexusAddonCache
 	},
 	util::{nexus::NexusId, win::{get_module_from_ptr, WinError, WinResult}},
@@ -44,6 +45,7 @@ impl NexusHost {
 			NexusLinkProvider::init(&ui);
 		}
 
+		QuickAccessMenu::init();
 		#[cfg(feature = "arcdps")] {
 			super::arcdps::ArcDpsCache::init();
 		}
@@ -79,6 +81,9 @@ impl NexusHost {
 		NexusLinkProvider::imgui_present(not_charsel_or_loading);
 
 		MumbleIdentity::try_update();
+
+		// TODO: have it register a render callback instead
+		QuickAccessMenuUi::render();
 
 		Self::render(RenderType::PreRender);
 		Self::render(RenderType::Render);
