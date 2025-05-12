@@ -578,7 +578,7 @@ impl TextureCache {
 		}
 	}
 
-	const TEXTURE_FALLBACK_ID: &'static CStr = cstr!(" :3");
+	pub const TEXTURE_FALLBACK_ID: &'static CStr = cstr!(" :3");
 
 	pub fn load_fallback(context: &ID3D11DeviceContext) -> WinResult<Texture> {
 		let fallback_data = include_bytes!("fallback-texture.bin");
@@ -593,8 +593,15 @@ impl TextureCache {
 	pub fn init_fallback(&mut self, context: &ID3D11DeviceContext) {
 		if self.fallback.is_none() {
 			self.fallback = Some(Self::load_fallback(context));
-			if let Some(Err(e)) = &self.fallback {
-				debug!("how could you! {e}");
+			match &self.fallback {
+				Some(Err(_e)) => {
+					debug!("how could you! {_e}");
+				},
+				Some(Ok(fallback)) => {
+					// TODO: most of this should use Arc...
+					self.textures.insert(Self::TEXTURE_FALLBACK_ID.into(), TextureEntry::Loaded(Box::new(fallback.clone())));
+				},
+				_ => (),
 			}
 		}
 	}
@@ -629,7 +636,7 @@ impl TextureCache {
 }
 
 impl NexusHost {
-	fn texture_lookup_with<R, F>(id: Option<&CStr>, f: F) -> Result<R, &CStr> where
+	pub fn texture_lookup_with<R, F>(id: Option<&CStr>, f: F) -> Result<R, &CStr> where
 		F: FnOnce(&TextureCache, &TextureEntry, &CStr) -> Option<R>,
 		R: From<*const Texture>,
 	{

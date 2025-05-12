@@ -11,6 +11,7 @@ pub use self::{
 	host::{NexusHost, NEXUS_HOST},
 	addon::{NexusAddon, NexusAddonCache},
 	data_link::MumbleIdentity,
+	texture::TextureCache,
 };
 
 pub use nexus::imgui;
