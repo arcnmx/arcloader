@@ -16,6 +16,10 @@ pub fn cstr_write(dst: &mut [c_char], src: &CStr) -> usize {
 	len
 }
 
+pub fn nonnull_const<P: ?Sized>(p: *const P) -> Option<NonNull<P>> {
+	NonNull::new(p as *mut P)
+}
+
 pub fn nonnull_ref<P: ?Sized>(p: &P) -> NonNull<P> {
 	unsafe {
 		nonnull_ref_unchecked(p)
@@ -25,5 +29,21 @@ pub fn nonnull_ref<P: ?Sized>(p: &P) -> NonNull<P> {
 pub unsafe fn nonnull_ref_unchecked<P: ?Sized>(p: *const P) -> NonNull<P> {
 	unsafe {
 		NonNull::new_unchecked(p as *mut P)
+	}
+}
+
+pub fn nonnull_ref_bytes<P: ?Sized>(p: &P) -> NonNull<[u8]> {
+	let size = size_of_val(p);
+	let ptr = ptr::slice_from_raw_parts_mut(p as *const P as *const u8 as *mut u8, size);
+	unsafe {
+		nonnull_ref_unchecked(ptr)
+	}
+}
+
+pub fn nonnull_bytes<P>(p: NonNull<P>) -> NonNull<[u8]> {
+	let size = size_of::<P>();
+	let ptr = ptr::slice_from_raw_parts_mut(p.cast::<u8>().as_ptr(), size);
+	unsafe {
+		nonnull_ref_unchecked(ptr)
 	}
 }

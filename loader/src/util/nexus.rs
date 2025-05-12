@@ -117,9 +117,7 @@ impl Deref for AddonDesc {
 impl fmt::Display for AddonDesc {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let name = self.name().to_string_lossy();
-		write!(f, "{name} {}",
-			format_args!("{}.{}.{}-{}", self.def.version.major, self.def.version.minor, self.def.version.revision, self.def.version.build),
-		)?;
+		write!(f, "{name} {}", self.version())?;
 		
 		#[cfg(todo)]
 		if let Some(author) = self.author() {
@@ -174,6 +172,13 @@ impl AddonVersion {
 			transmute(version)
 		}
 	}
+
+	pub fn revision(&self) -> Option<i16> {
+		match self.revision {
+			-1 => None,
+			rev => Some(rev),
+		}
+	}
 }
 
 impl Deref for AddonVersion {
@@ -194,7 +199,12 @@ impl DerefMut for AddonVersion {
 
 impl fmt::Display for AddonVersion {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "{}.{}.{}-{}", self.major, self.minor, self.revision, self.build)
+		write!(f, "{}.{}.{}", self.major, self.minor, self.build)?;
+		if let Some(rev) = self.revision() {
+			write!(f, ".{rev}")?;
+		}
+
+		Ok(())
 	}
 }
 

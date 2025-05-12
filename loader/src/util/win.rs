@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use std::{char::DecodeUtf16, ffi::{c_void, OsString}, io::{self, BufRead}, iter, os::windows::ffi::OsStringExt, ptr::NonNull, slice::from_raw_parts};
 use windows::{core::{Owned, Param}, Win32::{Foundation::{FreeLibrary, GetLastError, ERROR_INSUFFICIENT_BUFFER, ERROR_MOD_NOT_FOUND, ERROR_RESOURCE_NOT_PRESENT, HMODULE, MAX_PATH}, System::LibraryLoader::{FindResourceA, GetModuleFileNameW, GetModuleHandleExA, GetModuleHandleExW, LoadLibraryW, LoadResource, LockResource, SizeofResource, GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT}}};
 use windows_strings::{PCSTR, PCWSTR};
@@ -8,9 +9,11 @@ pub type WinResult<T> = Result<T, WinError>;
 pub fn get_module_path(handle: Option<HMODULE>) -> WinResult<OsString> {
 	let mut file_name_buf = [0u16; 128];
 	let res = unsafe {
-		let sz = GetModuleFileNameW(handle, &mut file_name_buf);
-		GetLastError()
-			.ok().map(|()| sz as usize)
+		match GetModuleFileNameW(handle, &mut file_name_buf) {
+			sz @ (0 | 128) => GetLastError()
+				.ok().map(|()| sz as usize),
+			sz => Ok(sz as usize),
+		}
 	};
 	match res {
 		Err(e) if e.code() == ERROR_INSUFFICIENT_BUFFER.to_hresult() => (),
@@ -74,7 +77,6 @@ pub fn free_library(module: HMODULE) -> WinResult<()> {
 	}
 }
 
-#[allow(non_snake_case)]
 pub fn MAKERESOURCEA(resource: u16) -> PCSTR {
 	PCSTR::from_raw(resource as usize as *const _)
 }
