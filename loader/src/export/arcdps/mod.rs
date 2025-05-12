@@ -1,9 +1,6 @@
-use std::{ffi::c_void, num::NonZeroU32, ptr};
-use arcdps::{
-	imgui::sys as imgui_sys,
-	__macro::{MallocFn, FreeFn},
-};
-use crate::export;
+use std::{ffi::c_void, mem::ManuallyDrop, num::NonZeroU32, ptr::{self, NonNull}};
+use arcdps::__macro::{MallocFn, FreeFn};
+use crate::{export, imgui, imgui_sys};
 
 #[cfg(feature = "arcdps-codegen")]
 mod codegen;
@@ -21,6 +18,19 @@ pub fn imgui_ctx() -> *mut imgui_sys::ImGuiContext {
 		() => unsafe {
 			ptr::read(ptr::addr_of!(extern_::IMGUI_CTX))
 		},
+	}
+}
+
+pub fn imgui_ui() -> Option<ManuallyDrop<imgui::Ui<'static>>> {
+	match NonNull::new(imgui_ctx()) {
+		None => None,
+		#[cfg(todo)]
+		Some(ctx) => Some(unsafe {
+			ManuallyDrop::new(imgui::Ui::from_ctx(&*ctx.as_ptr()))
+		}),
+		Some(..) => Some(unsafe {
+			arcdps::__macro::ui()
+		}),
 	}
 }
 
@@ -46,7 +56,7 @@ pub mod extern_ {
 	use arcdps::{
 		imgui::sys as imgui_sys,
 		callbacks::ArcDpsExport,
-		__macro::{MallocFn, FreeFn, init as arcdps_rs_init, ui as imgui_ui},
+		__macro::{MallocFn, FreeFn, init as arcdps_rs_init},
 		Event, Agent,
 	};
 	use crate::{export::{self, arcdps::SIG}, util::arc::{InitFn, ReleaseFn}};
@@ -167,11 +177,11 @@ extern_fns! {
 	}
 
 	unsafe extern "C" fn imgui(not_charsel_or_loading: u32) {
-		export::imgui(&imgui_ui(), not_charsel_or_loading != 0)
+		export::imgui(not_charsel_or_loading != 0)
 	}
 
 	unsafe extern "C" fn options_end() {
-		export::options_end(&imgui_ui())
+		export::options_end()
 	}
 }
 

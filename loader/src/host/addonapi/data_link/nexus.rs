@@ -1,6 +1,9 @@
 use nexus::{data_link::NexusLink, imgui::{Ui, FontId}};
 
-use crate::util::ffi::nonnull_bytes;
+use crate::{
+	util::ffi::nonnull_bytes,
+	RenderThread,
+};
 use std::{cell::UnsafeCell, mem::{transmute, MaybeUninit}, ptr::{self, NonNull}, sync::LazyLock};
 
 use super::DataLinkShare;
@@ -54,28 +57,30 @@ impl NexusLinkProvider {
 		}
 	}
 
-	pub fn imgui_present(ui: &Ui, not_charsel_or_loading: bool) {
-		NEXUS_LINK.update_ui(ui, not_charsel_or_loading)
+	pub fn imgui_present(not_charsel_or_loading: bool) {
+		NEXUS_LINK.update_ui(not_charsel_or_loading)
 	}
 
-	fn update_ui(&self, ui: &Ui, not_charsel_or_loading: bool) {
-		let [w, h] = ui.io().display_size;
-		#[cfg(todo)]
-		let [x, y] = ui.io().display_framebuffer_scale;
-		//let scaling =  x / y;
-		let scaling = 1.0;
-		let nl = self.data.get();
-		unsafe {
-			ptr::write_volatile(ptr::addr_of_mut!((*nl).is_gameplay), not_charsel_or_loading);
-			ptr::write_volatile(ptr::addr_of_mut!((*nl).width), w as u32);
-			ptr::write_volatile(ptr::addr_of_mut!((*nl).height), h as u32);
-			ptr::write_volatile(ptr::addr_of_mut!((*nl).scaling), scaling);
-			//self.data.is_moving = ?;
-			//self.data.is_camera_moving = ?;
-			if ptr::read(ptr::addr_of!((*nl).font)).is_null() {
-				self.update_fonts(ui);
+	fn update_ui(&self, not_charsel_or_loading: bool) {
+		RenderThread::with_ui(|ui| {
+			let [w, h] = ui.io().display_size;
+			#[cfg(todo)]
+			let [x, y] = ui.io().display_framebuffer_scale;
+			//let scaling =  x / y;
+			let scaling = 1.0;
+			let nl = self.data.get();
+			unsafe {
+				ptr::write_volatile(ptr::addr_of_mut!((*nl).is_gameplay), not_charsel_or_loading);
+				ptr::write_volatile(ptr::addr_of_mut!((*nl).width), w as u32);
+				ptr::write_volatile(ptr::addr_of_mut!((*nl).height), h as u32);
+				ptr::write_volatile(ptr::addr_of_mut!((*nl).scaling), scaling);
+				//self.data.is_moving = ?;
+				//self.data.is_camera_moving = ?;
+				if ptr::read(ptr::addr_of!((*nl).font)).is_null() {
+					self.update_fonts(ui);
+				}
 			}
-		}
+		});
 	}
 }
 

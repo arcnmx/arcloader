@@ -1,6 +1,5 @@
-use std::{collections::BTreeMap, ffi::{c_void, CStr}, mem::{transmute, MaybeUninit}, sync::{Arc, LazyLock, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError}};
-
-use nexus::{data_link::NexusLink, event::MumbleIdentityUpdate, gui::RenderType, imgui::{self, Ui}};
+use std::{collections::BTreeMap, ffi::{c_void, CStr}, sync::{Arc, LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError}};
+use nexus::{gui::RenderType, imgui::Ui};
 use windows::{core::Owned, Win32::Foundation::{ERROR_NOT_FOUND, HMODULE}};
 
 use crate::{
@@ -69,7 +68,7 @@ impl NexusHost {
 		}
 	}
 
-	pub fn imgui_present(ui: &Ui, not_charsel_or_loading: bool) {
+	pub fn imgui_present(not_charsel_or_loading: bool) {
 		#[cfg(todo)]
 		if not_charsel_or_loading {
 			// tracking for AddonFlag::OnlyLoadDuringGameLaunchSequence
@@ -77,7 +76,7 @@ impl NexusHost {
 		}
 
 		TextureCache::texture_uploads();
-		NexusLinkProvider::imgui_present(ui, not_charsel_or_loading);
+		NexusLinkProvider::imgui_present(not_charsel_or_loading);
 
 		MumbleIdentity::try_update();
 

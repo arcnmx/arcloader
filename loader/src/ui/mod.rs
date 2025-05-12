@@ -1,5 +1,5 @@
-use crate::{extensions::{Loader, LoaderCommand}, supervisor::{Supervisor, SupervisorCommand, SUPERVISOR}, util::{arc::game_dir, win::get_module_from_name}};
-use std::{cell::RefCell, collections::{BTreeSet, HashSet}, ffi::OsString, num::NonZeroU32, path::{Path, MAIN_SEPARATOR_STR}, sync::Arc};
+use crate::{extensions::{Loader, LoaderCommand}, supervisor::{Supervisor, SupervisorCommand, SUPERVISOR}, util::{arc::game_dir, win::get_module_from_name}, RenderThread};
+use std::{cell::RefCell, collections::{BTreeSet, HashSet}, ffi::{CStr, OsString}, num::NonZeroU32, path::{Path, MAIN_SEPARATOR_STR}, sync::Arc};
 use arcdps::{
 	 exports::{self, CoreColor}, imgui::{Id, StyleColor, TableColumnSetup, TableFlags, Ui}
 };
@@ -9,6 +9,8 @@ use windows::core::Owned;
 use windows_strings::HSTRING;
 
 use crate::util::win::get_module_path;
+
+mod render;
 
 thread_local! {
 	static OPTIONS: RefCell<Option<Options>> = RefCell::new(None);
@@ -48,14 +50,16 @@ impl Options {
 	pub fn unload() {
 	}
 
-	pub fn imgui_options_end(ui: &Ui) {
-		OPTIONS.with_borrow_mut(|opts| match opts {
-			Some(opts) => opts.imgui_render(ui),
-			None => ui.text_disabled("unsupported"),
-		})
+	pub fn imgui_options_end() {
+		RenderThread::with_ui(|ui| {
+			OPTIONS.with_borrow_mut(|opts| match opts {
+				Some(opts) => opts.imgui_render(ui),
+				None => ui.text_disabled("unsupported"),
+			})
+		});
 	}
 
-	pub fn imgui_present(_ui: &Ui) {
+	pub fn imgui_present() {
 		let needs_init = OPTIONS.with_borrow(|opt| opt.is_none());
 		if needs_init {
 			OPTIONS.set(Some(Self::new()));

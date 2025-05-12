@@ -1,10 +1,8 @@
-use std::{ffi::{c_char, CStr}, num::NonZeroU32, ptr::NonNull, sync::atomic::{AtomicBool, Ordering}};
-use crate::{supervisor::Supervisor, extensions::Loader, ui::Options};
+use std::{ffi::CStr, num::NonZeroU32, sync::atomic::{AtomicBool, Ordering}};
+use crate::{extensions::Loader, supervisor::Supervisor, ui::Options, RenderThread};
 #[cfg(feature = "host-addonapi")]
 use crate::host::addonapi::NexusHost;
-use ::arcdps::{
-	evtc::{Agent, Event}, imgui::Ui,
-};
+use ::arcdps::evtc::{Agent, Event};
 #[cfg(feature = "arcdps-extras")]
 use arcdps::extras::{ExtrasAddonInfo, UserInfoIter};
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
@@ -14,7 +12,7 @@ use windows_strings::PCSTR;
 pub mod arcdps;
 
 #[cfg(feature = "arcdps")]
-pub use self::arcdps::{imgui_ctx, allocator_fns};
+pub use self::arcdps::{imgui_ctx, imgui_ui, allocator_fns};
 
 pub const SIG: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(
 	u32::from_le_bytes([b'm', b'e', b'w', 3])
@@ -88,31 +86,29 @@ pub fn wnd_filter(window: HWND, message: u32, param_w: WPARAM, param_l: LPARAM) 
 	}
 }
 
-fn wnd_press(vkc: usize, pressed: bool, repeat: bool) -> bool {
-	true
-}
-
-pub fn imgui(ui: &Ui, not_charsel_or_loading: bool) {
+pub fn imgui(not_charsel_or_loading: bool) {
 	if !ARC_LOADED.load(Ordering::Relaxed) {
 		return
 	}
+
+	RenderThread::render_start();
 
 	#[cfg(feature = "host-addonapi")] {
-		NexusHost::imgui_present(ui, not_charsel_or_loading);
+		NexusHost::imgui_present(not_charsel_or_loading);
 	}
 	Supervisor::imgui_present();
-	Options::imgui_present(ui);
+	Options::imgui_present();
 }
 
-pub fn options_end(ui: &Ui) {
+pub fn options_end() {
 	if !ARC_LOADED.load(Ordering::Relaxed) {
 		return
 	}
 
-	Options::imgui_options_end(ui);
+	Options::imgui_options_end();
 }
 
-pub fn options_windows(ui: &Ui, window_name: Option<&str>) -> bool {
+pub fn options_windows(window_name: Option<&str>) -> bool {
 	true
 }
 
