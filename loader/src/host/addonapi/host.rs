@@ -5,7 +5,7 @@ use windows::{core::Owned, Win32::Foundation::{ERROR_NOT_FOUND, HMODULE}};
 
 use crate::{
 	host::addonapi::{
-		data_link::{MumbleIdentity, MUMBLE_LINK},
+		data_link::{MumbleIdentity, MumbleLinkProvider, NexusLinkProvider},
 		texture::TextureCache,
 		NexusAddon, NexusAddonCache
 	},
@@ -17,7 +17,6 @@ pub static NEXUS_HOST: RwLock<NexusHost> = RwLock::new(NexusHost::empty());
 pub struct NexusHost {
 	pub addons: BTreeMap<NexusId, Arc<NexusAddon>>,
 	pub fallback_cache: LazyLock<Arc<RwLock<NexusAddonCache>>>,
-	pub nexus_link: Mutex<NexusLink>,
 	pub mumble_identity: Option<MumbleIdentity>,
 }
 
@@ -26,9 +25,6 @@ impl NexusHost {
 		Self {
 			addons: BTreeMap::new(),
 			fallback_cache: LazyLock::new(|| Default::default()),
-			nexus_link: Mutex::new(unsafe {
-				MaybeUninit::zeroed().assume_init()
-			}),
 			mumble_identity: None,
 		}
 	}
@@ -41,32 +37,13 @@ impl NexusHost {
 		})
 		}
 
-		let mut host = Self::lock_write();
-		{
-			let nl = host.nexus_link.get_mut()
-				.unwrap_or_else(|e| e.into_inner());
-			unsafe {
-				let ui = arcdps::__macro::ui();
-				if let Some(&font) = ui.fonts().fonts().first() {
-					let font: imgui::FontId = font;
-					nl.font = transmute(font);
-					nl.font_ui = transmute(font);
-					nl.font_big = transmute(font);
-				}
-			}
-		}
+		MumbleLinkProvider::init();
+		MumbleIdentity::init();
 
-		let ml = gw2_mumble::MumbleLink::new();
-		if let Err(_e) = &ml {
-			error!("failed to open MumbleLink: {_e}");
+		unsafe {
+			let ui = arcdps::__macro::ui();
+			NexusLinkProvider::init(&ui);
 		}
-		let ml = ml.ok();
-		if let Some(ml) = &ml {
-			let id = host.mumble_identity.insert(MumbleIdentity::new());
-			id.update_identity_str(&ml.as_mumble_ptr());
-			id.update_identity_from_str();
-		}
-		MUMBLE_LINK.set(ml);
 	}
 
 	pub fn unload() {
@@ -96,38 +73,10 @@ impl NexusHost {
 		}
 
 		TextureCache::texture_uploads();
+		NexusLinkProvider::imgui_present(ui, not_charsel_or_loading);
 
-		let mli_update = if let Ok(mut host) = NEXUS_HOST.try_write() {
-			#[cfg(todo)]
-			let nl: *const Mutex<NexusLink> = &*host.nexus_link;
-			#[cfg(todo)]
-			let nl = unsafe { (*(nl as *mut Mutex<NexusLink>)).get_mut() }
-				.unwrap_or_else(|e| e.into_inner());
-			{
-				let mut nl = host.nexus_link.lock()
-				.unwrap_or_else(|e| e.into_inner());
-				nl.is_gameplay = not_charsel_or_loading;
-				let [w, h] = ui.io().display_size;
-				nl.width = w as u32;
-				nl.height = h as u32;
-				let [x, y] = ui.io().display_framebuffer_scale;
-				nl.scaling = 1.0;
-				//nl.is_moving = ?;
-				//nl.is_camera_moving = ?;
-				//nl.scaling = x / y;
-				let font: imgui::FontId = ui.current_font().id();
-				unsafe {
-					nl.font = transmute(font);
-					nl.font_ui = transmute(font);
-					nl.font_big = transmute(font);
-				}
-			}
+		MumbleIdentity::try_update();
 
-			host.update_mumble_link_identity()
-		} else { None };
-		if let Some(mli) = mli_update {
-			Self::event_broadcast(Self::EV_MUMBLE_IDENTITY_UPDATED, mli.as_ptr() as *const MumbleIdentityUpdate as *const _);
-		}
 		Self::render(RenderType::PreRender);
 		Self::render(RenderType::Render);
 		Self::render(RenderType::PostRender);
@@ -189,12 +138,6 @@ impl NexusHost {
 			Self::lock_write().addons.remove(&addon.signature);
 		} else {
 			Self::event_broadcast(Self::EV_ADDON_LOADED, &sig as *const _ as *const _);
-			#[cfg(unnecessary)]
-			match &*MUMBLE_LINK_IDENTITY.lock().unwrap() {
-				Some(mli) =>
-					Self::event_broadcast(Self::EV_MUMBLE_IDENTITY_UPDATED, mli as *const _ as *const _),
-				_ => (),
-			}
 		}
 
 		res
