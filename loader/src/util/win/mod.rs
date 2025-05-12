@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
-use std::{char::DecodeUtf16, ffi::{c_void, OsString}, io::{self, BufRead}, iter, os::windows::ffi::OsStringExt, ptr::NonNull, slice::from_raw_parts};
-use windows::{core::{Owned, Param}, Win32::{Foundation::{FreeLibrary, GetLastError, ERROR_INSUFFICIENT_BUFFER, ERROR_MOD_NOT_FOUND, ERROR_RESOURCE_NOT_PRESENT, HMODULE, MAX_PATH}, System::LibraryLoader::{FindResourceA, GetModuleFileNameW, GetModuleHandleExA, GetModuleHandleExW, LoadLibraryW, LoadResource, LockResource, SizeofResource, GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT}}};
+use std::{char::DecodeUtf16, ffi::{c_void, OsString}, io::{self, BufRead}, iter, num::NonZeroU16, os::windows::ffi::OsStringExt, ptr::NonNull, slice::from_raw_parts};
+use windows::{core::{Owned, Param}, Win32::{Foundation::{FreeLibrary, GetLastError, ERROR_INSUFFICIENT_BUFFER, ERROR_MOD_NOT_FOUND, ERROR_RESOURCE_NOT_PRESENT, HMODULE, LPARAM, MAX_PATH}, System::LibraryLoader::{FindResourceA, GetModuleFileNameW, GetModuleHandleExA, GetModuleHandleExW, LoadLibraryW, LoadResource, LockResource, SizeofResource, GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT}, UI::Input::KeyboardAndMouse::{GetKeyNameTextW, MapVirtualKeyA, MAPVK_VK_TO_VSC, MAPVK_VSC_TO_VK, VIRTUAL_KEY}}};
 use windows_strings::{PCSTR, PCWSTR};
 
 pub use windows::core::Error as WinError;
@@ -34,6 +34,41 @@ pub fn get_module_path(handle: Option<HMODULE>) -> WinResult<OsString> {
 		buf.truncate(len);
 		OsString::from_wide(&buf)
 	})
+}
+
+pub fn get_key_name(code: LPARAM) -> WinResult<OsString> {
+	let mut buf = [0u16; 128];
+	let res = unsafe {
+		match GetKeyNameTextW(code.0 as i32, &mut buf) {
+			0 => GetLastError()
+				.ok().map(|()| 0),
+			sz => Ok(sz as usize),
+		}
+	};
+	match res {
+		Err(e) => Err(e),
+		Ok(len @ 0..=128) => Ok(OsString::from_wide(&buf[..len])),
+		Ok(_res) => {
+			debug!("weird, I didn't ask for {_res}");
+			Err(WinError::new(ERROR_INSUFFICIENT_BUFFER.to_hresult(), "key name too long"))
+		},
+	}
+}
+
+pub fn get_scan_code(vk: VIRTUAL_KEY) -> Option<NonZeroU16> {
+	let vsc = unsafe {
+		MapVirtualKeyA(vk.0.into(), MAPVK_VK_TO_VSC)
+	};
+	NonZeroU16::new(vsc as u16)
+}
+
+pub fn get_vk(vsc: u16) -> Option<VIRTUAL_KEY> {
+	let vk = unsafe {
+		MapVirtualKeyA(vsc.into(), MAPVK_VSC_TO_VK)
+	};
+	NonZeroU16::new(vk as u16)
+		.map(|vk| vk.get())
+		.map(VIRTUAL_KEY)
 }
 
 pub fn get_module_from_name<P: Param<PCWSTR>>(name: P) -> WinResult<Option<HMODULE>> {

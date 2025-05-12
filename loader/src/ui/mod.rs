@@ -355,14 +355,6 @@ impl Options {
 					return None
 				}
 			}
-			if ui.button("whee") {
-				let keybinds = crate::host::addonapi::input::InputBinds::lock_read();
-				for (k, regs) in &keybinds.binds {
-					for reg in regs {
-						(reg.callback)(reg.id.as_ptr(), false);
-					}
-				}
-			}
 			ui.table_next_column();
 
 			ui.text(addon.name().to_string_lossy());
@@ -419,7 +411,8 @@ impl Options {
 	#[cfg(feature = "host-addonapi")]
 	pub fn extensions_options_nexus(&mut self, ui: &Ui) {
 		use nexus::gui::RenderType;
-		use crate::host::addonapi::{NexusAddonCache, NEXUS_HOST};
+		use nexus::imgui::MouseButton;
+		use crate::host::addonapi::{input, NexusAddonCache, NEXUS_HOST};
 
 		ui.separator();
 
@@ -432,21 +425,48 @@ impl Options {
 		for addon in host.addons.values() {
 			let ext_token = ui.push_id(Id::Ptr(Arc::as_ptr(addon) as *const _));
 
-			let cache = NexusAddonCache::lock_read(&addon.cache);
-			let renderers = match cache.renderers.get(&RenderType::OptionsRender) {
-				Some(render) if !render.is_empty() => render,
-				_ => continue,
-			};
-
 			//or collapsing_header_with_close_button?
 			let tab = match ui.tab_item(addon.name().to_string_lossy()) {
 				Some(tab) => tab,
 				None => continue,
 			};
 
+			let mut keybinds_table = None;
+			for keybind in input::InputBinds::lock_read().binds_for_addon(&host, addon.signature) {
+				keybinds_table.get_or_insert_with(|| {
+					ui.begin_table_header_with_flags("keybinds", [
+						TableColumnSetup::new("keybinds"),
+						TableColumnSetup::default(),
+						TableColumnSetup::default(),
+					], TableFlags::ROW_BG | TableFlags::BORDERS_H | TableFlags::NO_SAVED_SETTINGS).unwrap()
+				});
+				ui.table_next_column();
+
+				ui.text(keybind.id.to_string_lossy());
+				ui.table_next_column();
+
+				if ui.button(keybind.bind.to_string()) {
+					warn!("TODO: set keybind");
+				}
+				ui.table_next_column();
+
+				if ui.button("Press") {
+					(keybind.callback)(keybind.id.as_ptr(), true);
+				} else if ui.is_mouse_released(MouseButton::Left) && ui.is_item_hovered() {
+					(keybind.callback)(keybind.id.as_ptr(), false);
+				}
+			}
+			drop(keybinds_table);
+			let cache = NexusAddonCache::lock_read(&addon.cache);
+			match cache.renderers.get(&RenderType::OptionsRender) {
+				Some(renderers) if !renderers.is_empty() => {
 			for cb in renderers {
 				cb();
 			}
+				},
+				_ => (),
+			};
+
 
 			// TODO: quick access interactions, show keybinds, and more?
 
