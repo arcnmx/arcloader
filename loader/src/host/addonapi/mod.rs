@@ -1,5 +1,5 @@
 use std::ptr;
-use arcdps::dxgi_swap_chain;
+use ::arcdps::dxgi_swap_chain;
 use nexus::{DataLinkApi, EventApi, FontApi, GameBindApi, InputBindsApi, LocalizationApi, MinHookApi, PathApi, QuickAccessApi, RendererApi, TextureApi, UiApi, WndProcApi};
 use windows::{core::Error as WinError, Win32::Foundation::ERROR_API_UNAVAILABLE};
 
@@ -201,3 +201,5 @@ mod localization;
 mod quick_access;
 mod ui;
 mod render;
+#[cfg(feature = "arcdps")]
+pub mod arcdps;

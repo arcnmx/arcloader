@@ -44,6 +44,10 @@ impl NexusHost {
 			let ui = arcdps::__macro::ui();
 			NexusLinkProvider::init(&ui);
 		}
+
+		#[cfg(feature = "arcdps")] {
+			super::arcdps::ArcDpsCache::init();
+		}
 	}
 
 	pub fn unload() {
