@@ -1,12 +1,13 @@
 use nexus::event::RawEventConsumeUnknown;
 use crate::{
-	host::addonapi::{NexusHost, NEXUS_HOST},
+	host::addonapi::{NexusAddonCache, NexusHost, NEXUS_HOST},
 	util::ffi::cstr_opt,
 };
 use std::{ffi::{c_char, c_void, CStr}, ptr};
 
 impl NexusHost {
 	pub const EV_ADDON_LOADED: &'static CStr = cstr!("EV_ADDON_LOADED");
+	pub const EV_ADDON_UNLOADED: &'static CStr = cstr!("EV_ADDON_UNLOADED");
 	pub const EV_WINDOW_RESIZED: &'static CStr = cstr!("EV_WINDOW_RESIZED");
 	pub const EV_MUMBLE_IDENTITY_UPDATED: &'static CStr = cstr!("EV_MUMBLE_IDENTITY_UPDATED");
 
@@ -77,25 +78,73 @@ impl NexusHost {
 
 	pub unsafe extern "C-unwind" fn addonapi_event_raise(identifier: *const c_char, event_data: *const c_void) {
 		let id = cstr_opt(&identifier);
+		addonapi_stub!(event::raise("{:?}, {:?}", id, event_data));
 
-		addonapi_stub!(event::raise("{:?}, {:?}", id, event_data) => ())
+		let id = match id {
+			Some(id) => id,
+			None => {
+				warn!("expected event id");
+				return
+			},
+		};
+		Self::event_broadcast(id, event_data);
 	}
 
 	pub unsafe extern "C-unwind" fn addonapi_event_raise_targeted(signature: i32, identifier: *const c_char, event_data: *const c_void) {
 		let id = cstr_opt(&identifier);
+		addonapi_stub!(event::raise_targeted("{:?}, {:?}, {:?}", signature, id, event_data));
 
-		addonapi_stub!(event::raise_targeted("{:?}, {:?}, {:?}", signature, id, event_data) => ())
+		let id = match id {
+			Some(id) => id,
+			None => {
+				warn!("expected event id");
+				return
+			},
+		};
+
+		let interest = {
+			let host = Self::lock_read();
+			let addon = host.addons.get(&signature);
+			let interest = addon.as_ref()
+				.and_then(|addon| NexusAddonCache::lock_read(&addon.cache).event_handlers.get(id).cloned());
+			match (interest, addon) {
+				(None, Some(addon)) => {
+					debug!("{addon} is not subscribed to {id:?}");
+					None
+				},
+				(None, None) => {
+					warn!("could not find addon {signature:08x}");
+					None
+				},
+				(Some(interest), Some(addon)) if interest.is_empty() => {
+					debug!("{addon} is no longer subscribed to {id:?}");
+					None
+				},
+				(Some(interest), ..) =>
+					Some(interest),
+			}
+		};
+		let interest = match interest {
+			Some(i) => i,
+			None => return,
+		};
+
+		for cb in interest {
+			cb(event_data);
+		}
 	}
 
 	pub unsafe extern "C-unwind" fn addonapi_event_raise_notification(identifier: *const c_char) {
 		let id = cstr_opt(&identifier);
+		addonapi_stub!(event::raise_notification("{:?}", id));
 
-		addonapi_stub!(event::raise_notification("{:?}", id) => ())
+		Self::addonapi_event_raise(identifier, ptr::null())
 	}
 
 	pub unsafe extern "C-unwind" fn addonapi_event_raise_notification_targeted(signature: i32, identifier: *const c_char) {
 		let id = cstr_opt(&identifier);
+		addonapi_stub!(event::raise_notification_targeted("{:?}, {:?}", signature, id));
 
-		addonapi_stub!(event::raise_notification_targeted("{:?}, {:?}", signature, id) => ())
+		Self::addonapi_event_raise_targeted(signature, identifier, ptr::null())
 	}
 }

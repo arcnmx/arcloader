@@ -176,6 +176,8 @@ impl NexusHost {
 
 		Self::lock_write().addons.remove(&addon.signature);
 
+		Self::event_broadcast(Self::EV_ADDON_UNLOADED, &sig as *const _ as *const c_void);
+
 		Ok(())
 	}
 
