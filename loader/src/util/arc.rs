@@ -358,7 +358,7 @@ pub fn add_extension(mut handle: Owned<HMODULE>) -> WinResult<()> {
 		AddExtensionResult::Ok => Ok(()),
 		AddExtensionResult::LoadError => {
 			// TODO: does not free library after?
-			Err(unsafe { GetLastError().into() })
+			Err(WinError::from_win32())
 		},
 		failure => Err(WinError::new(ERROR_INVALID_DLL.to_hresult(), format!("{failure:?}"))),
 	}

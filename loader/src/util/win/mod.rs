@@ -3,8 +3,29 @@ use std::{char::DecodeUtf16, ffi::{c_void, OsString}, io::{self, BufRead}, iter,
 use windows::{core::{Owned, Param}, Win32::{Foundation::{FreeLibrary, GetLastError, ERROR_INSUFFICIENT_BUFFER, ERROR_MOD_NOT_FOUND, ERROR_RESOURCE_NOT_PRESENT, HMODULE, LPARAM, MAX_PATH}, System::LibraryLoader::{FindResourceA, GetModuleFileNameW, GetModuleHandleExA, GetModuleHandleExW, LoadLibraryW, LoadResource, LockResource, SizeofResource, GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT}, UI::Input::KeyboardAndMouse::{GetKeyNameTextW, MapVirtualKeyA, MAPVK_VK_TO_VSC, MAPVK_VSC_TO_VK, VIRTUAL_KEY}}};
 use windows_strings::{PCSTR, PCWSTR};
 
-pub use windows::core::Error as WinError;
-pub type WinResult<T> = Result<T, WinError>;
+pub use windows::core::{Error as WinError, Result as WinResult};
+
+#[macro_export]
+macro_rules! winerror {
+	($e:ident; $($tt:tt)*) => {
+		winerror! { windows::Win32::Foundation::$e, $($tt)* }
+	};
+	($e:ident) => {
+		winerror! { windows::Win32::Foundation::$e, }
+	};
+	($e:expr, fmt: $($tt:tt)*) => {
+		$crate::util::win::WinError::new($e.to_hresult(), format!($($tt)*))
+	};
+	($e:expr, $msg:expr) => {
+		$crate::util::win::WinError::new($e.to_hresult(), $msg)
+	};
+	($e:expr) => {
+		$crate::util::win::WinError::new($e.to_hresult(), $msg)
+	};
+	() => {
+		winerror! { ERROR_CALL_NOT_IMPLEMENTED, "TODO" }
+	};
+}
 
 pub fn get_module_path(handle: Option<HMODULE>) -> WinResult<OsString> {
 	let mut file_name_buf = [0u16; 128];
@@ -40,8 +61,7 @@ pub fn get_key_name(code: LPARAM) -> WinResult<OsString> {
 	let mut buf = [0u16; 128];
 	let res = unsafe {
 		match GetKeyNameTextW(code.0 as i32, &mut buf) {
-			0 => GetLastError()
-				.ok().map(|()| 0),
+			0 => Err(WinError::from_win32()),
 			sz => Ok(sz as usize),
 		}
 	};
@@ -50,7 +70,7 @@ pub fn get_key_name(code: LPARAM) -> WinResult<OsString> {
 		Ok(len @ 0..=128) => Ok(OsString::from_wide(&buf[..len])),
 		Ok(_res) => {
 			debug!("weird, I didn't ask for {_res}");
-			Err(WinError::new(ERROR_INSUFFICIENT_BUFFER.to_hresult(), "key name too long"))
+			Err(winerror!(ERROR_INSUFFICIENT_BUFFER, "key name too long"))
 		},
 	}
 }
@@ -122,7 +142,7 @@ pub unsafe fn find_resource<I: Param<PCSTR>, T: Param<PCSTR>>(module: &HMODULE, 
 		let resource = LoadResource(Some(*module), src)?;
 		let size = SizeofResource(Some(*module), src) as usize;
 		NonNull::new(LockResource(resource))
-			.ok_or_else(|| WinError::new(ERROR_RESOURCE_NOT_PRESENT.to_hresult(), format!("failed to lock resource {module:?}/{src:?}/{resource:?}")))
+			.ok_or_else(|| winerror!(ERROR_RESOURCE_NOT_PRESENT, fmt: "failed to lock resource {module:?}/{src:?}/{resource:?}"))
 			.map(|ptr| from_raw_parts(ptr.as_ptr() as *const c_void as *const u8, size))
 	}
 }
