@@ -38,7 +38,7 @@ default = [
 	"arcdps",
 	#"addonapi",
 	#"host-arcdps",
-	"host-addonapi"
+	"host-addonapi",
 ]
 arcdps = ["dep:arcdps", "nexus?/arcdps"]
 arcdps-codegen = ["arcdps?/export"]
@@ -57,3 +57,4 @@ mumble = ["dep:gw2_mumble", "nexus?/mumble"]
 serde = ["dep:serde", "dep:serde_json", "arcdps?/serde", "nexus?/serde", "gw2_mumble?/json"]
 log = ["dep:log", "arcdps?/log", "nexus?/log"]
 unwind = ["arcdps?/unwind"]
+unstable = []
