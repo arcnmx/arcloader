@@ -240,6 +240,7 @@ pub struct Keybind {
 }
 
 impl Keybind {
+	pub const EMPTY: Self = Self::new_key(0, false, false, false);
 	pub const LMB: Self = Self::new_button(1);
 	pub const RMB: Self = Self::new_button(2);
 	pub const MMB: Self = Self::new_button(3);
@@ -393,8 +394,30 @@ impl Keybind {
 		})
 	}
 
+	pub fn to_nexus(self) -> NexusKeybind {
+		NexusKeybind {
+			key: self.code,
+			alt: self.alt != 0,
+			ctrl: self.ctrl != 0,
+			shift: self.shift != 0,
+		}
+	}
+
+	pub fn as_nexus_ptr(&self) -> *const NexusKeybind {
+		self as *const Self as *const NexusKeybind
+	}
+}
+
+impl Keybind {
+	pub const ASCII_EMPTY: &'static CStr = cstr!("(null)");
+	pub const ASCII_LMB: &'static CStr = cstr!("LMB");
+	pub const ASCII_RMB: &'static CStr = cstr!("LMB");
+	pub const ASCII_MMB: &'static CStr = cstr!("MMB");
+	pub const ASCII_M4: &'static CStr = cstr!("M4");
+	pub const ASCII_M5: &'static CStr = cstr!("M5");
+
 	pub fn interpret_ascii(s: &[u8]) -> WinResult<(KeybindMods, &[u8])> {
-		let mut bind = Keybind::default();
+		let mut bind = Keybind::EMPTY;
 		let mut split = s.splitn(4, |&b| b == b'+');
 		let key = loop {
 			let seg = match split.next() {
@@ -435,16 +458,16 @@ impl Keybind {
 		let mut bind = Keybind::with_mods(mods, 0);
 
 		let mouse = match key {
-			k if k.eq_ignore_ascii_case(b"LMB") =>
+			k if k.eq_ignore_ascii_case(Self::ASCII_EMPTY.to_bytes()) =>
+				Some(Keybind::EMPTY),
+			k if k.eq_ignore_ascii_case(Self::ASCII_LMB.to_bytes()) =>
 				Some(Keybind::LMB),
-			k if k.eq_ignore_ascii_case(b"RMB") =>
+			k if k.eq_ignore_ascii_case(Self::ASCII_RMB.to_bytes()) =>
 				Some(Keybind::RMB),
-			k if k.eq_ignore_ascii_case(b"MMB") =>
+			k if k.eq_ignore_ascii_case(Self::ASCII_MMB.to_bytes()) =>
 				Some(Keybind::MMB),
-			k if k.eq_ignore_ascii_case(b"M4") =>
-				Some(Keybind::M4),
-			k if k.eq_ignore_ascii_case(b"M5") =>
-				Some(Keybind::M5),
+			[b'M' | b'm', button @ b'4'..=b'5'] =>
+				Some(Self::new_button(button - b'4' + 4)),
 			_ => None,
 		};
 		match (mouse, bind) {
@@ -490,19 +513,6 @@ impl Keybind {
 		}
 
 		Err(WinError::new(ERROR_CALL_NOT_IMPLEMENTED.to_hresult(), format!("virtual keycode lookup for {:?}", String::from_utf8_lossy(key))))
-	}
-
-	pub fn to_nexus(self) -> NexusKeybind {
-		NexusKeybind {
-			key: self.code,
-			alt: self.alt != 0,
-			ctrl: self.ctrl != 0,
-			shift: self.shift != 0,
-		}
-	}
-
-	pub fn as_nexus_ptr(&self) -> *const NexusKeybind {
-		self as *const Self as *const NexusKeybind
 	}
 }
 
