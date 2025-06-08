@@ -95,6 +95,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "arcloader-mumblelink"
+version = "0.1.0"
+dependencies = [
+ "arcffi",
+ "gw2_mumble",
+ "log",
+ "nexus",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
