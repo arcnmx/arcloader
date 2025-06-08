@@ -532,7 +532,7 @@ impl TryFrom<&'_ CStr> for Keybind {
 	type Error = WinError;
 
 	fn try_from(s: &CStr) -> Result<Self, Self::Error> {
-		Self::parse_ascii(s.as_ref().to_bytes())
+		Self::parse_ascii(s.to_bytes())
 	}
 }
 

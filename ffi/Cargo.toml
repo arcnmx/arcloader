@@ -1,0 +1,50 @@
+[package]
+name = "arcffi"
+authors = [ "arcnmx" ]
+version = "0.1.0"
+edition = "2021"
+
+description = "asdf"
+keywords = []
+
+homepage = "https://github.com/arcnmx/arcloader"
+repository = "https://github.com/arcnmx/arcloader"
+#readme
+license = "MIT"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+	"cfg(todo)",
+	"cfg(unnecessary)",
+	"cfg(msrv, values(any()))",
+] }
+
+[dependencies]
+windows-strings-03 = { package = "windows-strings", version = "0.3", optional = true }
+windows-strings-04 = { package = "windows-strings", version = "0.4", optional = true }
+windows-core-060 = { package = "windows-core", version = "0.60", default-features = false, optional = true }
+windows-core-061 = { package = "windows-core", version = "0.61", default-features = false, optional = true }
+windows-060 = { package = "windows", version = "0.60", default-features = false, optional = true }
+windows-061 = { package = "windows", version = "0.61", default-features = false, optional = true }
+
+[features]
+default = [
+]
+windows-core-060 = [
+	"dep:windows-core-060",
+	"windows-strings-03",
+]
+windows-core-061 = [
+	"dep:windows-core-061",
+	"windows-strings-04",
+]
+windows-060 = [
+	"dep:windows-060",
+	"windows-core-060",
+]
+windows-061 = [
+	"dep:windows-061",
+	"windows-core-061",
+]
+unwind = []
+unstable = []

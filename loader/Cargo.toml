@@ -5,6 +5,11 @@ description = "Nope"
 version = "0.1.0"
 edition = "2021"
 
+homepage = "https://github.com/arcnmx/arcloader"
+repository = "https://github.com/arcnmx/arcloader"
+#readme
+license = "MIT"
+
 [lib]
 crate-type = ["cdylib"]
 
@@ -13,6 +18,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(todo)'] }
 
 [dependencies]
 log = { version = "0.4", optional = true }
+arcffi = { path = "../ffi", default-features = false, features = ["windows-060"] }
 closure-ffi = { version = "0.5", default-features = false, optional = true }
 arcdps = { git = "https://github.com/zerthox/arcdps-rs", default-features = false, optional = true }
 #arcdps-imgui = "0.8"

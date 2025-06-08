@@ -1,10 +1,10 @@
 use gw2_mumble::{Identity, MumbleLink, MumblePtr};
 use nexus::event::MumbleIdentityUpdate;
-use windows_strings::PCWSTR;
-
-use crate::{
-	host::addonapi::{NexusHost, NEXUS_HOST},
-	util::{ffi::{nonnull_bytes, nonnull_const, nonnull_ref_unchecked}, win::WideUtf8Reader},
+use crate::host::addonapi::{NexusHost, NEXUS_HOST};
+use arcffi::{
+	wide::WideUtf8Reader,
+	nonnull_bytes, nonnull_const, nonnull_ref_unchecked,
+	CStrPtr16,
 };
 use std::{ffi::OsString, hash::{DefaultHasher, Hash, Hasher}, mem::{transmute, MaybeUninit}, num::NonZeroI32, os::windows::ffi::OsStringExt, ptr::{self, NonNull}, sync::LazyLock};
 
@@ -57,8 +57,8 @@ impl MumbleIdentity {
 	pub fn borrow_identity(ml: &MumblePtr) -> &[u16] {
 		let lm = ml.as_ptr();
 		let identity = unsafe { ptr::addr_of!((*lm).identity) };
-		let identity = PCWSTR::from_raw(identity as *const u16);
-		let identity = unsafe { identity.as_wide() };
+		let identity = unsafe { CStrPtr16::new(nonnull_ref_unchecked(identity as *const u16)) };
+		let identity = identity.as_data();
 		if identity.len() >= Self::ID_DATA_LEN {
 			error!("identity string unterminated");
 			return &[]

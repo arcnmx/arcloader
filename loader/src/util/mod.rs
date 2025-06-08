@@ -1,81 +1,8 @@
-#[macro_export]
-macro_rules! cstr {
-	($($s:tt)*) => {
-		unsafe {
-			::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($($s)*, "\0").as_bytes())
-		}
-	};
-}
-
-#[cfg(all(feature = "unwind", panic = "unwind"))]
-macro_rules! extern_fns_impl {
-	(@fn;
-		$vis:vis unsafe extern "C" $($tt:tt)*
-	) => {
-		$vis unsafe extern "C-unwind" $($tt)*
-	};
-	(@fn;
-		$vis:vis unsafe extern "system" $($tt:tt)*
-	) => {
-		$vis unsafe extern "system-unwind" $($tt)*
-	};
-	(@type(fn);
-		$vis:vis type $id = unsafe extern "C" $($tt:tt)*
-	) => {
-		$vis type $id = unsafe extern "C-unwind" $($tt)*
-	};
-	(@type(fn);
-		$vis:vis type $id = unsafe extern "system" $($tt:tt)*
-	) => {
-		$vis type $id = unsafe extern "system-unwind" $($tt)*
-	};
-}
-
-#[cfg(any(not(feature = "unwind"), not(panic = "unwind")))]
-macro_rules! extern_fns_impl {
-	(@fn;
-		$vis:vis unsafe extern $abi:tt $($tt:tt)*
-	) => {
-		$vis unsafe extern $abi $($tt)*
-	};
-	(@fn(type);
-		$vis:vis type $id:ident = unsafe extern $abi:tt $($tt:tt)*
-	) => {
-		$vis type $id = unsafe extern $abi $($tt)*
-	};
-}
-
 macro_rules! extern_fns {
-	() => {};
-	(
-		$vis:vis unsafe extern $abi:tt fn $id:ident($($args:tt)*) $(-> $res:ty)? {
-			$($body:tt)*
-		}
-		$($tt:tt)*
-	) => {
-		extern_fns_impl! { @fn;
-			$vis unsafe extern $abi fn $id($($args)*) $(-> $res)? {
-				$($body)*
-			}
-		}
-
-		extern_fns! {
-			$($tt)*
-		}
-	};
-	(
-		$vis:vis type $id:ident = unsafe extern $abi:tt fn($($args:tt)*) $(-> $res:ty)?;
-
-		$($tt:tt)*
-	) => {
-		extern_fns_impl! { @type(fn);
-			$vis type $id = unsafe extern $abi fn($($args)*) $(-> $res)?;
-		}
-
-		extern_fns! {
-			$($tt)*
-		}
-	};
+	($($s:tt)*) => {::arcffi::extern_fns!{$($s)*}};
+}
+macro_rules! cstr {
+	($($s:tt)*) => {::arcffi::cstr!{$($s)*}};
 }
 
 #[cfg(not(feature = "log"))]
@@ -108,6 +35,6 @@ macro_rules! error {
 pub mod arc;
 #[cfg(any(feature = "addonapi", feature = "host-addonapi"))]
 pub mod nexus;
-pub mod ffi;
+pub(crate) use arcffi as ffi;
 #[cfg(windows)]
 pub mod win;
