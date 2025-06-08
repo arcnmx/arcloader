@@ -1,4 +1,4 @@
-use crate::{supervisor::Supervisor, util::{arc::{add_extension, remove_extension}, win::{load_library, WinResult}}};
+use crate::{supervisor::Supervisor, util::{arc::{add_extension, remove_extension}, win::{load_library_w, WinResult}}};
 use std::num::NonZeroU32;
 #[cfg(feature = "arcdps-extras")]
 use arcdps::extras::{ExtrasAddonInfo, UserInfoIter};
@@ -48,7 +48,7 @@ impl Loader {
 		match cmd {
 			LoaderCommand::LoadPath { path } => {
 				// TODO: load with LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR or something idk
-				let module = load_library(&path)?;
+				let module = load_library_w(&path, Default::default())?;
 				let loader = match () {
 					_ if path.to_string_lossy().contains(crate::supervisor::ExtDir::INFIX_ARCDPS) => Some(AddonLoader::Arcdps),
 					_ if path.to_string_lossy().contains(crate::supervisor::ExtDir::INFIX_NEXUS) => Some(AddonLoader::NexusHost),

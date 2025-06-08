@@ -4,31 +4,20 @@ macro_rules! extern_fns {
 macro_rules! cstr {
 	($($s:tt)*) => {::arcffi::cstr!{$($s)*}};
 }
-
-#[cfg(not(feature = "log"))]
-macro_rules! arc_log {
-	($($tt:tt)*) => {};
-}
-#[cfg(feature = "log")]
-macro_rules! arc_log {
-	(!$ex:tt; $level:ident($($tt:tt)*)) => {
-		log::$level $ex { $($tt)* }
-	};
-}
 macro_rules! trace {
-	($($tt:tt)*) => {arc_log!{!!;trace($($tt)*)}};
+	($($tt:tt)*) => {::dyload::log::trace!{$($tt)*}};
 }
 macro_rules! debug {
-	($($tt:tt)*) => {arc_log!{!!;debug($($tt)*)}};
+	($($tt:tt)*) => {::dyload::log::debug!{$($tt)*}};
 }
 macro_rules! info {
-	($($tt:tt)*) => {arc_log!{!!;info($($tt)*)}};
+	($($tt:tt)*) => {::dyload::log::info!{$($tt)*}};
 }
 macro_rules! warn {
-	($($tt:tt)*) => {arc_log!{!!;warn($($tt)*)}};
+	($($tt:tt)*) => {::dyload::log::warn!{$($tt)*}};
 }
 macro_rules! error {
-	($($tt:tt)*) => {arc_log!{!!;error($($tt)*)}};
+	($($tt:tt)*) => {::dyload::log::error!{$($tt)*}};
 }
 
 #[cfg(any(feature = "arcdps", feature = "host-arcdps"))]
@@ -36,5 +25,6 @@ pub mod arc;
 #[cfg(any(feature = "addonapi", feature = "host-addonapi"))]
 pub mod nexus;
 pub(crate) use arcffi as ffi;
-#[cfg(windows)]
-pub mod win;
+pub(crate) mod win {
+	pub use ::dyload::windows::*;
+}

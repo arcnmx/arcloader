@@ -1,0 +1,51 @@
+[package]
+name = "dyload"
+authors = [ "arcnmx" ]
+version = "0.1.0"
+edition = "2021"
+
+description = "asdf"
+keywords = []
+
+homepage = "https://github.com/arcnmx/arcloader"
+repository = "https://github.com/arcnmx/arcloader"
+#readme
+license = "MIT"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+	"cfg(todo)",
+	"cfg(unnecessary)",
+	"cfg(msrv, values(any()))",
+] }
+
+[dependencies]
+arcffi = { path = "../ffi", default-features = false }
+log = { version = "0.4", optional = true }
+windows-core = { version = "0.60", optional = true }
+windows = { version = "0.60", optional = true, features = [
+	"Win32_System_Com",
+	"Win32_System_Threading",
+	"Win32_System_SystemServices",
+	"Win32_System_SystemInformation",
+	"Win32_System_Diagnostics_Debug",
+	"Win32_System_ProcessStatus",
+	"Win32_System_LibraryLoader",
+] }
+
+[features]
+default = [
+	"windows",
+	"keyboard",
+]
+windows = [
+	"dep:windows-core",
+	"dep:windows",
+	"arcffi/windows-060",
+]
+keyboard = [
+	"windows?/Win32_UI_Input_KeyboardAndMouse",
+]
+log = ["dep:log"]
+unwind = []
+unstable = []

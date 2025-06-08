@@ -19,6 +19,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(todo)'] }
 [dependencies]
 log = { version = "0.4", optional = true }
 arcffi = { path = "../ffi", default-features = false, features = ["windows-060"] }
+dyload = { path = "../dyload", default-features = false, features = ["windows"] }
 closure-ffi = { version = "0.5", default-features = false, optional = true }
 arcdps = { git = "https://github.com/zerthox/arcdps-rs", default-features = false, optional = true }
 #arcdps-imgui = "0.8"
