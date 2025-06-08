@@ -1,0 +1,72 @@
+[package]
+name = "dpsapi"
+authors = [ "arcnmx" ]
+version = "0.1.0"
+edition = "2021"
+
+description = "asdf"
+keywords = []
+
+homepage = "https://github.com/arcnmx/arcloader"
+repository = "https://github.com/arcnmx/arcloader"
+#readme
+license = "MIT"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(todo)'] }
+
+[dependencies]
+arcffi = { path = "../ffi", default-features = false }
+dyload = { path = "../dyload", default-features = false, optional = true }
+arcdps-015 = { package = "arcdps", git = "https://github.com/zerthox/arcdps-rs", tag = "0.15.1", default-features = false, optional = true }
+arcdps = { package = "arcdps", git = "https://github.com/zerthox/arcdps-rs", default-features = false, optional = true }
+evtc = { git = "https://github.com/zerthox/arcdps-rs", default-features = false, optional = true }
+nexus = { git = "https://github.com/zerthox/nexus-rs", default-features = false, optional = true }
+windows = { version = "0.60", default-features = false, optional = true }
+log = { version = "0.4", default-features = false, optional = true }
+
+[features]
+default = [
+	# remove this from defaults eventually...
+	"arcdps", "evtc",
+	"embed",
+	#"host",
+	#"host-imgui",
+	#"extras",
+	"windows",
+	#"unwind",
+]
+arcdps-015 = ["evtc", "dep:arcdps-015", "nexus?/arc"]
+arcdps = ["evtc-016", "dep:arcdps", "nexus?/arc"]
+evtc-016 = ["dep:evtc"]
+evtc = []
+nexus = ["dep:nexus"]
+host = [
+	"dyload",
+]
+embed = [
+	"windows",
+]
+host-imgui = [
+	"windows?/Win32_Graphics_Imaging",
+	"windows?/Win32_Graphics_Direct3D",
+	"windows?/Win32_Graphics_Direct3D11",
+	"windows?/Win32_Graphics_Dxgi_Common",
+]
+extras = [
+	"arcdps?/extras",
+]
+log = [
+	"dep:log",
+	"dyload?/log",
+]
+windows = [
+	"dep:windows",
+	"arcffi/windows-060",
+	"dyload?/windows",
+]
+unwind = [
+	"dyload?/unwind",
+	#"arcdps?/unwind",
+]
+unstable = []

@@ -5,6 +5,7 @@ members = [
 	"ffi",
 	"dyload",
 	"mumblelink",
+	"dpsapi",
 ]
 
 [profile.release]
@@ -21,6 +22,7 @@ gw2_mumble = { git = "https://github.com/arcnmx/gw2-mumble-rs" }
 
 [patch."https://github.com/zerthox/arcdps-rs"]
 arcdps = { git = "https://github.com/arcnmx/arcdps-rs" }
+evtc = { git = "https://github.com/arcnmx/arcdps-rs" }
 
 [patch."https://github.com/zerthox/nexus-rs"]
 nexus = { git = "https://github.com/arcnmx/nexus-rs" }
