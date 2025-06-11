@@ -516,6 +516,24 @@ impl<'c> CombatEventAgent<'c> {
 			.unwrap_or(c_bool32::FALSE)
 	}
 
+	pub fn agent(&self) -> CombatAgentRef {
+		let mut agent = CombatAgentRef {
+			name: Default::default(),
+			prof: Default::default(),
+			elite: Default::default(),
+			id: self.src.id,
+			team: self.src.team,
+			is_self: self.src.is_self,
+		};
+		if let Some(dst) = &self.dst {
+			agent.is_self = dst.is_self;
+			agent.name = dst.name.as_ref().map(|name| name.as_c_ptr());
+			agent.prof = dst.prof;
+			agent.elite = dst.elite;
+		}
+		agent
+	}
+
 	pub fn id(&self) -> usize {
 		self.src.id
 	}
