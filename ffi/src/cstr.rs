@@ -14,6 +14,10 @@ pub type c_wchar = u16;
 pub use core::ffi::CStr;
 pub use std::ffi::CString;
 
+pub const EMPTY_CSTR: &'static CStr = unsafe {
+	CStr::from_bytes_with_nul_unchecked(&[0u8])
+};
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct CStrPtr<'a> {
@@ -1018,6 +1022,16 @@ impl<'a> CStrPtr16<'a> {
 	pub fn utf8(self) -> WideUtf8Reader<'a> {
 		WideUtf8Reader::new(self.as_data())
 	}
+
+	#[inline]
+	pub fn is_empty(&self) -> bool {
+		unsafe { self.ptr.read() == 0 }
+	}
+
+	pub const unsafe fn immortal<'p>(self) -> CStrPtr16<'p> {
+		transmute(self)
+	}
+
 }
 
 #[cfg(windows)]
@@ -1109,7 +1123,7 @@ pub fn cstring_from_os<T: Into<OsString>>(os: T) -> Result<CString, std::io::Err
 macro_rules! cstr {
 	(&$($s:tt)*) => {
 		unsafe {
-			$crate::CStrPtr::with_cstr(
+			$crate::cstr::CStrPtr::with_cstr(
 				$crate::cstr!($($s)*)
 			)
 		}
@@ -1120,5 +1134,6 @@ macro_rules! cstr {
 		}
 	};
 }
+pub use cstr;
 
 use super::{nonnull_ref_cast, nonnull_ref_ref};

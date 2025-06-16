@@ -5,7 +5,7 @@ use std::{
 	ptr::{self, NonNull},
 };
 use gw2_mumble::{Identity, MumblePtr};
-use arcffi::{nonnull_ref_unchecked, wide::WideUtf8Reader, CStrPtr16};
+use arcffi::{nonnull_ref_unchecked, wide::WideUtf8Reader, cstr::CStrPtr16};
 
 #[cfg(feature = "nexus")]
 pub use nexus::event::MumbleIdentityUpdate as ImpIdentity;

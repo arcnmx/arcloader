@@ -10,8 +10,7 @@ mod ptr;
 pub use self::ptr::*;
 
 #[macro_use]
-mod cstr;
-pub use self::cstr::*;
+pub mod cstr;
 
 #[doc(hidden)]
 #[macro_use]
@@ -25,6 +24,7 @@ pub use core::{
 	ptr::NonNull,
 };
 pub use core::ffi::{c_int as c_senum, c_uint as c_uenum};
+pub use crate::cstr::c_wchar;
 
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]

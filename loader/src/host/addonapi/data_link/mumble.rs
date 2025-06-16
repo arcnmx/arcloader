@@ -4,7 +4,7 @@ use crate::host::addonapi::{NexusHost, NEXUS_HOST};
 use arcffi::{
 	wide::WideUtf8Reader,
 	nonnull_bytes, nonnull_const, nonnull_ref_unchecked,
-	CStrPtr16,
+	cstr::CStrPtr16,
 };
 use std::{ffi::OsString, hash::{DefaultHasher, Hash, Hasher}, mem::{transmute, MaybeUninit}, num::NonZeroI32, os::windows::ffi::OsStringExt, ptr::{self, NonNull}, sync::LazyLock};
 

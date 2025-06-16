@@ -1,6 +1,6 @@
 use core::{fmt, mem::transmute, num::NonZeroU64};
 use std::{borrow::{Borrow, Cow}, mem::MaybeUninit};
-use arcffi::{c_bool32, c_char, cstr_write, CStr, CStrBox, CStrPtr, CStrRef};
+use arcffi::{c_bool32, c_char, cstr::{cstr_write, CStr, CStrBox, CStrPtr, CStrRef}};
 
 #[cfg(feature = "evtc")]
 pub use crate::arcdps::imp_evtc::{

@@ -24,7 +24,10 @@ macro_rules! error {
 pub mod arc;
 #[cfg(any(feature = "addonapi", feature = "host-addonapi"))]
 pub mod nexus;
-pub(crate) use arcffi as ffi;
+pub(crate) mod ffi {
+	pub use arcffi::*;
+	pub use arcffi::cstr::*;
+}
 pub(crate) mod win {
 	pub use ::dyload::windows::*;
 }

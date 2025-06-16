@@ -1,5 +1,5 @@
 use core::{fmt, hash, mem::transmute, num::{NonZeroUsize, NonZeroU64}, ptr};
-use arcffi::{c_bool32, c_void, cstr, CStr, CStrPtr, CStrPtr16, NonNull, UserMallocFn, UserFreeFn};
+use arcffi::{c_bool32, c_void, cstr::{cstr, CStr, CStrPtr, CStrPtr16}, NonNull, UserMallocFn, UserFreeFn};
 #[cfg(feature = "dyload")]
 #[cfg(feature = "windows")]
 use dyload::windows::{
