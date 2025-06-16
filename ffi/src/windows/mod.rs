@@ -47,6 +47,10 @@ pub mod core {
 #[cfg(feature = "library")]
 pub mod library;
 
+#[cfg(windows)]
+#[cfg(feature = "wic")]
+pub mod wic;
+
 #[cfg(feature = "winerror")]
 #[path = "error.rs"]
 pub mod winerror;
