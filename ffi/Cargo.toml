@@ -29,22 +29,38 @@ windows-061 = { package = "windows", version = "0.61", default-features = false,
 
 [features]
 default = [
+	"winerror",
+	"std",
 ]
 windows-core-060 = [
+	"windows-core",
 	"dep:windows-core-060",
 	"windows-strings-03",
 ]
 windows-core-061 = [
+	"windows-core",
 	"dep:windows-core-061",
 	"windows-strings-04",
 ]
+windows-core = []
 windows-060 = [
+	"windows",
 	"dep:windows-060",
 	"windows-core-060",
 ]
 windows-061 = [
+	"windows",
 	"dep:windows-061",
 	"windows-core-061",
+]
+windows = []
+winerror = [
+	"windows-060?/Win32_System_Diagnostics_Debug",
+	"windows-061?/Win32_System_Diagnostics_Debug",
+]
+std = [
+	"windows-core-060?/std",
+	"windows-core-061?/std",
 ]
 unwind = []
 unstable = []
