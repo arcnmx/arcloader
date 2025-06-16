@@ -27,6 +27,10 @@ pub use self::adapter::core060 as core0xx;
 
 pub mod adapter;
 
+#[cfg(windows)]
+#[cfg(feature = "com")]
+pub mod com;
+
 pub mod core {
 	#[doc(no_inline)]
 	pub use super::adapter::{

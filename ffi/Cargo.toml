@@ -54,6 +54,11 @@ windows-061 = [
 	"windows-core-061",
 ]
 windows = []
+com = [
+	"std",
+	"windows-060?/Win32_System_Com",
+	"windows-061?/Win32_System_Com",
+]
 library = [
 	"windows-060?/Win32_System_LibraryLoader",
 	"windows-061?/Win32_System_LibraryLoader",
