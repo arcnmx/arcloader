@@ -54,6 +54,10 @@ windows-061 = [
 	"windows-core-061",
 ]
 windows = []
+library = [
+	"windows-060?/Win32_System_LibraryLoader",
+	"windows-061?/Win32_System_LibraryLoader",
+]
 winerror = [
 	"windows-060?/Win32_System_Diagnostics_Debug",
 	"windows-061?/Win32_System_Diagnostics_Debug",

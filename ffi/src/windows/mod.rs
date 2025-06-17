@@ -26,9 +26,6 @@ pub use self::adapter::{core061 as core0xx, core061};
 pub use self::adapter::core060 as core0xx;
 
 pub mod adapter;
-#[cfg(feature = "winerror")]
-#[path = "error.rs"]
-pub mod winerror;
 
 pub mod core {
 	#[doc(no_inline)]
@@ -41,6 +38,14 @@ pub mod core {
 	};
 	pub type Result<T> = ::core::result::Result<T, Error>;
 }
+
+#[cfg(windows)]
+#[cfg(feature = "library")]
+pub mod library;
+
+#[cfg(feature = "winerror")]
+#[path = "error.rs"]
+pub mod winerror;
 
 #[path = "win32/mod.rs"]
 pub mod Win32;
