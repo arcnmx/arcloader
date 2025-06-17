@@ -59,6 +59,10 @@ com = [
 	"windows-060?/Win32_System_Com",
 	"windows-061?/Win32_System_Com",
 ]
+dxgi = [
+	"windows-060?/Win32_Graphics_Dxgi_Common",
+	"windows-061?/Win32_Graphics_Dxgi_Common",
+]
 library = [
 	"windows-060?/Win32_System_LibraryLoader",
 	"windows-061?/Win32_System_LibraryLoader",

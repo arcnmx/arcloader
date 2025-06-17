@@ -1,7 +1,7 @@
 pub mod Imaging {
 	#[cfg(feature = "wic")]
 	pub use crate::windows::wic::{
-		WICRect, WICComponentType, WICDecodeOptions, WICBitmapDitherType, WICBitmapPaletteType,
+		WICRect, WICComponentType, WICDdsFormatInfo, WICDecodeOptions, WICBitmapDitherType, WICBitmapPaletteType,
 		IWICStream,
 		IWICPalette,
 		IWICBitmapScaler,
@@ -28,3 +28,7 @@ pub mod Imaging {
 		decode::{IWICBitmapDecoder_Vtbl, IWICBitmapFrameDecode_Vtbl},
 	};
 }
+
+#[cfg(feature = "dxgi")]
+#[path = "dxgi.rs"]
+pub mod Dxgi;

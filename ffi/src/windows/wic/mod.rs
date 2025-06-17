@@ -59,6 +59,10 @@ pub use self::{
 		ColorContext, ColorContext as IWICColorContext,
 		WICBitmapPaletteType,
 	},
+	dds::{
+		DdsFrameDecode, DdsFrameDecode as IWICDdsFrameDecode,
+		WICDdsFormatInfo,
+	},
 };
 
 pub mod factory;
@@ -66,6 +70,9 @@ pub mod bitmap;
 pub mod convert;
 pub mod decode;
 pub mod encode;
+pub mod dds;
+#[cfg(feature = "dxgi")]
+pub mod dxgi;
 pub mod info;
 pub mod palette;
 pub mod stream;
@@ -195,6 +202,11 @@ fn fallback_decode() {
 		decoder.get_frame(BitmapFrameDecode::DEFAULT_FRAME).unwrap()
 	};
 	assert_image(&image);
+
+	#[cfg(feature = "dxgi")] {
+		let image_dxgi = image.for_dxgi(None, &loader).unwrap();
+		assert_image(&image_dxgi);
+	}
 
 	drop(image);
 	drop(loader);
