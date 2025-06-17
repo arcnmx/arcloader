@@ -4,8 +4,8 @@ let
     url = "https://github.com/edolstra/flake-compat/archive/${lock.nodes.flake-compat.locked.rev}.tar.gz";
     sha256 = lock.nodes.flake-compat.locked.narHash;
   };
-  taimiHUD = import flakeCompat {
+  arcloader = import flakeCompat {
     src = ./.;
   };
 in
-taimiHUD.defaultNix
+arcloader.defaultNix
