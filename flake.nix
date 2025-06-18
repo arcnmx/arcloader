@@ -60,7 +60,11 @@
       else pkgs.pkgsCross.mingwW64;
     rust-w64 = import rust { pkgs = pkgs-w64; };
     rust-w64-overlay' = rust-w64-overlay { inherit rust-w64; };
-    channel-w64 = rust-w64.latest.override {
+    channel = rust-w64.latest;
+    channel-w64 = channel.override {
+      channelOverlays = [ rust-w64-overlay' ];
+    };
+    channel-w64-unstable = rust-w64.unstable.override {
       channelOverlays = [ rust-w64-overlay' ];
     };
     rust'builders = {
@@ -71,12 +75,12 @@
   in {
     devShells = import ./shell.nix {
       inherit inputs;
-      inherit (legacyPackages) rust pkgs pkgs-w64 rust-w64-overlay;
+      inherit (legacyPackages) pkgs pkgs-w64;
     };
 
     legacyPackages = {
       inherit pkgs pkgs-w64;
-      inherit rust-w64 channel-w64;
+      inherit rust-w64 channel-w64 channel-w64-unstable channel;
       rust = import rust { inherit pkgs; };
       rust-w64-overlay = rust-w64-overlay';
 
@@ -113,6 +117,7 @@
         name = "arcloader";
         version = "0.1.0";
       };
+      msrv = "1.80.1";
       cxxflags = [
         "-Oz"
         "-march=x86-64-v3"
@@ -123,4 +128,3 @@
     inherit (self.lib.crate) version;
   };
 }
-

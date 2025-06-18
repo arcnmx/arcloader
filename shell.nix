@@ -1,7 +1,6 @@
 { inputs
 , pkgs
 , pkgs-w64
-, rust, rust-w64-overlay
 }:
 let
   inherit (pkgs) system;
@@ -32,11 +31,7 @@ let
     CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER = TARGET_CC;
     CXXFLAGS_x86_64_pc_windows_gnu = "-shared -fno-threadsafe-statics";
   };
-  arc'shell = { lib, buildPackages, stdenv, windows }: let
-    channel = rust.unstable.override {
-      channelOverlays = [ rust-w64-overlay ];
-    };
-  in channel.mkShell {
+  arc'shell = { lib, buildPackages, stdenv, windows, channel }: channel.mkShell {
     rustTools = ["rust-analyzer"];
     nativeBuildInputs = [
       pkgs-w64.stdenv.cc.bintools
@@ -49,5 +44,10 @@ let
 in {
   default = inputs.self.devShells.${system}.arc;
   fenix = pkgs-w64.callPackage fenix'shell { };
-  arc = pkgs.callPackage arc'shell { };
+  arc = pkgs.callPackage arc'shell {
+    channel = (inputs.self.legacyPackages.${system}).channel-w64;
+  };
+  arc-unstable = pkgs.callPackage arc'shell {
+    channel = (inputs.self.legacyPackages.${system}).channel-w64-unstable;
+  };
 }

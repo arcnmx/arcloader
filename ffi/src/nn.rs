@@ -1,4 +1,4 @@
-use core::{mem::transmute, ptr::{self, NonNull}};
+use core::{mem::{transmute, size_of, size_of_val}, ptr::{self, NonNull}};
 
 #[inline]
 pub const fn nonnull_const<P: ?Sized>(p: *const P) -> Option<NonNull<P>> {

@@ -184,7 +184,7 @@ impl<'a> CStrPtr<'a> {
 
 	#[inline]
 	pub fn is_empty(&self) -> bool {
-		unsafe { self.ptr.read() == 0 }
+		unsafe { *self.ptr.as_ptr() == 0 }
 	}
 }
 
@@ -1025,7 +1025,7 @@ impl<'a> CStrPtr16<'a> {
 
 	#[inline]
 	pub fn is_empty(&self) -> bool {
-		unsafe { self.ptr.read() == 0 }
+		unsafe { *self.ptr.as_ptr() == 0 }
 	}
 
 	pub const unsafe fn immortal<'p>(self) -> CStrPtr16<'p> {
