@@ -472,7 +472,7 @@ impl CStrBox {
 	}
 
 	#[inline]
-	pub const fn as_c_ptr(&self) -> CStrPtr {
+	pub const fn as_c_ptr<'a>(&'a self) -> CStrPtr<'a> {
 		self.ptr
 	}
 
@@ -754,7 +754,7 @@ impl CStrRef {
 	}
 
 	#[inline]
-	pub const fn with_c_ptr(cstr: CStrPtr) -> &Self {
+	pub const fn with_c_ptr<'a>(cstr: CStrPtr<'a>) -> &'a Self {
 		unsafe {
 			transmute(cstr)
 		}
@@ -768,7 +768,7 @@ impl CStrRef {
 	}
 
 	#[inline]
-	pub const fn as_c_ptr(&self) -> CStrPtr {
+	pub const fn as_c_ptr(&self) -> CStrPtr<'_> {
 		unsafe {
 			transmute(self)
 		}

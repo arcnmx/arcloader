@@ -95,7 +95,6 @@ windows_newtype! {
 pub mod wic060 {
 	use crate::windows::{
 		adapter::windows_newtype,
-		core060::InterfaceRef,
 		core::Result,
 		wic::{self, ImagingFactory},
 		Win32_060::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER},
@@ -114,14 +113,6 @@ pub mod wic060 {
 		unsafe {
 			CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_INPROC_SERVER)
 		}.map_err(Into::into)
-	}
-
-	impl ImagingFactory {
-		pub fn factory_060(&self) -> InterfaceRef<IWICImagingFactory> {
-			unsafe {
-				InterfaceRef::from_raw(self.interface.raw())
-			}
-		}
 	}
 
 	windows_newtype! {

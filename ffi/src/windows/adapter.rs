@@ -82,7 +82,7 @@ impl Error {
 	}
 
 	#[cfg(feature = "std")]
-	pub fn message(&self) -> Cow<str> {
+	pub fn message(&self) -> Cow<'_, str> {
 		match &self.info {
 			Some(msg) => Cow::Borrowed(msg),
 			None => self.code().message(),

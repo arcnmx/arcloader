@@ -62,7 +62,7 @@ pub unsafe trait Interface {
 			.map(|p| unsafe { I::from_raw(p.as_ptr()) })*/
 	}
 
-	fn to_ref(&self) -> InterfaceRef<Self::Owned> where
+	fn to_ref(&self) -> InterfaceRef<'_, Self::Owned> where
 		Self: InterfacePtr,
 	{
 		unsafe {
@@ -71,7 +71,7 @@ pub unsafe trait Interface {
 		}
 	}
 
-	fn to_parent<P: Interface>(&self) -> InterfaceRef<P> where
+	fn to_parent<P: Interface>(&self) -> InterfaceRef<'_, P> where
 		Self: InterfaceBase<P> + InterfacePtr,
 	{
 		let p = self.as_parent().as_raw();
@@ -91,7 +91,7 @@ pub unsafe trait Interface {
 }
 
 pub unsafe trait InterfaceBase<P: Interface>: Interface {
-	fn as_parent(&self) -> InterfaceRef<P> {
+	fn as_parent(&self) -> InterfaceRef<'_, P> {
 		unsafe {
 			let p = NonNull::new_unchecked(self.as_raw());
 			InterfaceRef::from_raw(p)
@@ -116,7 +116,7 @@ pub unsafe trait InterfaceBase<P: Interface>: Interface {
 }
 
 pub unsafe trait InterfaceAs<P: Interface>: Interface {
-	fn get_parent(&self) -> InterfaceRef<P>;
+	fn get_parent(&self) -> InterfaceRef<'_, P>;
 
 	fn get_parent_vtable(&self) -> &P::Vtable;
 }
@@ -125,7 +125,7 @@ unsafe impl<P, I> InterfaceAs<P> for I where
 	P: Interface,
 	I: InterfaceBase<P>,
 {
-	fn get_parent(&self) -> InterfaceRef<P> {
+	fn get_parent(&self) -> InterfaceRef<'_, P> {
 		self.as_parent()
 	}
 

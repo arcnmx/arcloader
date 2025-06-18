@@ -69,7 +69,7 @@ windows_adapter! { pub mod core as core0xx =>
 	unsafe impl<'a, I: Interface> com::interface::InterfaceBase<com::IUnknown> for core0xx::InterfaceRef<'a, I> where
 		Self: com::Interface,
 	{
-		fn as_parent(&self) -> com::InterfaceRef<com::IUnknown> {
+		fn as_parent(&self) -> com::InterfaceRef<'_, com::IUnknown> {
 			match I::UNKNOWN {
 				true => unsafe {
 					com::InterfaceRef::from_raw(NonNull::new_unchecked(self.as_raw()))

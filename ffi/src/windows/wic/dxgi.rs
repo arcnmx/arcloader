@@ -14,7 +14,7 @@ use std::{borrow::Cow, iter, result::Result as StdResult};
 impl BitmapSource {
 	pub const DXGI_FORMAT_FALLBACK: DXGI_FORMAT = DXGI_FORMAT::R8G8B8A8_UNORM;
 	pub const DXGI_PIXFMT_FALLBACK: &'static GUID = &PixelFormatInfo::GUID_32bppRGBA;
-	pub fn for_dxgi(&self, dxgifmt: Option<DXGI_FORMAT>, factory: &ImagingFactory) -> Result<Cow<Self>> {
+	pub fn for_dxgi(&self, dxgifmt: Option<DXGI_FORMAT>, factory: &ImagingFactory) -> Result<Cow<'_, Self>> {
 		let pixfmt_id = self.pixel_format()?;
 		let pixfmt_dest = match dxgifmt {
 			Some(f) => match PixelFormatInfo::guid_from_dxgi(f) {

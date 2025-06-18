@@ -180,7 +180,7 @@ unsafe impl<'i, P, I: InterfaceBase<P>> InterfaceBase<P> for InterfaceRef<'i, I>
 	P: Interface,
 	I: InterfacePtr,
 {
-	fn as_parent(&self) -> InterfaceRef<P> {
+	fn as_parent(&self) -> InterfaceRef<'_, P> {
 		self.parent()
 	}
 }
