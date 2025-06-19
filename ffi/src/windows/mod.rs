@@ -25,6 +25,13 @@ pub use self::adapter::{core061 as core0xx, core061};
 #[cfg(all(feature = "windows-core-060", not(any(feature = "windows-core-061"))))]
 pub use self::adapter::core060 as core0xx;
 
+#[cfg(all(windows, feature = "windows-strings-03"))]
+pub use ::windows_strings_03 as strings03;
+#[cfg(all(windows, feature = "windows-strings-04"))]
+pub use ::{windows_strings_04 as strings0xx, windows_strings_04 as strings04};
+#[cfg(all(windows, feature = "windows-strings-03", not(any(feature = "windows-strings-04"))))]
+pub use ::windows_strings_03 as strings0xx;
+
 #[cfg(feature = "windows-link")]
 pub use ::windows_link::link;
 #[cfg(not(feature = "windows-link"))]

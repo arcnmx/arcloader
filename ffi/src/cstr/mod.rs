@@ -242,6 +242,12 @@ impl Borrow<CStr> for CStrPtr<'_> {
 	}
 }
 
+impl<'a> AsRef<CStrPtr<'a>> for &'_ CStrPtr<'a> {
+	fn as_ref(&self) -> &CStrPtr<'a> {
+		self
+	}
+}
+
 impl<'a> AsRef<CStrPtr<'a>> for &'a CStr {
 	fn as_ref(&self) -> &CStrPtr<'a> {
 		CStrPtr::with_cstr_ref(self)
@@ -406,56 +412,6 @@ impl From<CStrPtr<'_>> for *const c_char {
 impl From<CStrPtr<'_>> for NonNull<c_char> {
 	fn from(cstr: CStrPtr) -> Self {
 		cstr.ptr()
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "std")]
-#[cfg(feature = "windows-strings-03")]
-impl From<CStrPtr<'_>> for windows_strings_03::HSTRING {
-	fn from(cstr: CStrPtr) -> Self {
-		(&*cstr.to_os_str()).into()
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "std")]
-#[cfg(feature = "windows-strings-04")]
-impl From<CStrPtr<'_>> for windows_strings_04::HSTRING {
-	fn from(cstr: CStrPtr) -> Self {
-		(&*cstr.to_os_str()).into()
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-strings-03")]
-impl From<CStrPtr<'_>> for windows_strings_03::PCSTR {
-	fn from(cstr: CStrPtr) -> Self {
-		Self::from_raw(cstr.as_uptr())
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-strings-04")]
-impl From<CStrPtr<'_>> for windows_strings_04::PCSTR {
-	fn from(cstr: CStrPtr) -> Self {
-		Self::from_raw(cstr.as_uptr())
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-core-060")]
-impl windows_core_060::Param<windows_core_060::PCSTR> for CStrPtr<'_> {
-	unsafe fn param(self) -> windows_core_060::ParamValue<windows_core_060::PCSTR> {
-		windows_core_060::PCSTR::from(self).param()
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-core-061")]
-impl windows_core_061::Param<windows_core_061::PCSTR> for CStrPtr<'_> {
-	unsafe fn param(self) -> windows_core_061::ParamValue<windows_core_061::PCSTR> {
-		windows_core_061::PCSTR::from(self).param()
 	}
 }
 
@@ -977,6 +933,13 @@ impl Borrow<CStrRef> for CStrPtr<'_> {
 	}
 }
 
+impl AsRef<CStrRef> for CStrRef {
+	#[inline]
+	fn as_ref(&self) -> &CStrRef {
+		self
+	}
+}
+
 impl AsRef<CStr> for CStrRef {
 	#[inline]
 	fn as_ref(&self) -> &CStr {
@@ -1048,6 +1011,12 @@ impl<'a> CStrPtr16<'a> {
 		Self {
 			ptr,
 			_borrow: PhantomData,
+		}
+	}
+
+	pub const unsafe fn new_ref_ref<'p>(ptr: &'p &'a c_wchar) -> &'p Self {
+		unsafe {
+			transmute(ptr)
 		}
 	}
 
@@ -1156,54 +1125,6 @@ impl fmt::Display for CStrPtr16<'_> {
 	#[inline]
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		fmt::Display::fmt(self.as_c_ref(), f)
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-strings-03")]
-impl From<CStrPtr16<'_>> for windows_strings_03::HSTRING {
-	fn from(cstr: CStrPtr16) -> Self {
-		windows_strings_03::HSTRING::from_wide(cstr.as_data())
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-strings-04")]
-impl From<CStrPtr16<'_>> for windows_strings_04::HSTRING {
-	fn from(cstr: CStrPtr16) -> Self {
-		windows_strings_04::HSTRING::from_wide(cstr.as_data())
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-strings-03")]
-impl From<CStrPtr16<'_>> for windows_strings_03::PCWSTR {
-	fn from(cstr: CStrPtr16) -> Self {
-		Self::from_raw(cstr.as_ptr())
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-strings-04")]
-impl From<CStrPtr16<'_>> for windows_strings_04::PCWSTR {
-	fn from(cstr: CStrPtr16) -> Self {
-		Self::from_raw(cstr.as_ptr())
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-core-060")]
-impl windows_core_060::Param<windows_core_060::PCWSTR> for CStrPtr16<'_> {
-	unsafe fn param(self) -> windows_core_060::ParamValue<windows_core_060::PCWSTR> {
-		windows_core_060::PCWSTR::from(self).param()
-	}
-}
-
-#[cfg(windows)]
-#[cfg(feature = "windows-core-061")]
-impl windows_core_061::Param<windows_core_061::PCWSTR> for CStrPtr16<'_> {
-	unsafe fn param(self) -> windows_core_061::ParamValue<windows_core_061::PCWSTR> {
-		windows_core_061::PCWSTR::from(self).param()
 	}
 }
 
@@ -1360,14 +1281,6 @@ impl ToOwned for CStrRef16 {
 	}
 }
 
-#[cfg(todo)]
-impl Borrow<CStrRef16> for HSTRING {
-	#[inline]
-	fn borrow(&self) -> &CStrRef16 {
-		CStrRef16::new(self)
-	}
-}
-
 impl Borrow<CStrRef16> for CStrPtr16<'_> {
 	#[inline]
 	fn borrow(&self) -> &CStrRef16 {
@@ -1375,11 +1288,10 @@ impl Borrow<CStrRef16> for CStrPtr16<'_> {
 	}
 }
 
-#[cfg(todo)]
-impl AsRef<CStrRef16> for HSTRING {
+impl AsRef<CStrRef16> for CStrRef16 {
 	#[inline]
 	fn as_ref(&self) -> &CStrRef16 {
-		CStrRef16::new(self)
+		self
 	}
 }
 
@@ -1390,7 +1302,26 @@ impl AsRef<CStrRef16> for CStrPtr16<'_> {
 	}
 }
 
-// TODO: impl Param for CStrPtr16, and CStrRef/CStrRef16 too
+impl<'a> AsRef<CStrPtr16<'a>> for &'_ CStrPtr16<'a> {
+	fn as_ref(&self) -> &CStrPtr16<'a> {
+		self
+	}
+}
+
+#[cfg(all(windows, feature = "windows-strings-03"))]
+mod imp_windows_strings_03 {
+	use windows_strings_03 as strings0xx;
+	include! { "windows/strings.rs" }
+}
+#[cfg(all(windows, feature = "windows-strings-04"))]
+mod imp_windows_strings_04 {
+	use windows_strings_04 as strings0xx;
+	include! { "windows/strings.rs" }
+}
+
+crate::windows::adapter::windows_adapter! { mod core as core0xx =>
+	include! { "windows/core.rs" }
+}
 
 pub unsafe fn cstr_opt<'a>(s: &'a *const c_char) -> Option<&'a CStr> {
 	NonNull::new(*s as *mut c_char)
