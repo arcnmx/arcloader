@@ -63,7 +63,7 @@ pub use crate::windows::adapter::{
 	WIN32_ERROR,
 	FILETIME, GENERIC_ACCESS_RIGHTS,
 	LPARAM, WPARAM,
-	HMODULE,
+	HMODULE, HWND,
 };
 #[cfg(feature = "library")]
 pub use crate::windows::library::free_library as FreeLibrary;
@@ -114,6 +114,7 @@ pub const ERROR_PROC_NOT_FOUND: WIN32_ERROR = WIN32_ERROR(127);
 pub const ERROR_BAD_ARGUMENTS: WIN32_ERROR = WIN32_ERROR(160);
 pub const ERROR_BAD_PATHNAME: WIN32_ERROR = WIN32_ERROR(161);
 pub const ERROR_BUSY: WIN32_ERROR = WIN32_ERROR(170);
+pub const ERROR_NOT_FOUND: WIN32_ERROR = WIN32_ERROR(1168);
 
 pub const ERROR_INVALID_PIXEL_FORMAT: WIN32_ERROR = WIN32_ERROR(2000);
 

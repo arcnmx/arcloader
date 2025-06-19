@@ -4,42 +4,40 @@ use core::{
 };
 use crate::{
 	c_void,
-	cstr::{CStrRef, CStrPtr, CStrPtr16},
+	cstr::{CStrRef, CStrRef16},
 	windows::{
 		adapter::windows_adapter,
 		core::{Error, Result, HRESULT},
-		Win32::{
-			Foundation::{
-				HMODULE,
-				ERROR_MOD_NOT_FOUND,
-				FARPROC,
-			},
-		},
+		Win32::Foundation::ERROR_MOD_NOT_FOUND,
 	},
 };
-pub use crate::windows::Win32::System::LibraryLoader::LOAD_LIBRARY_FLAGS;
+pub use crate::windows::Win32::{
+	Foundation::{HMODULE, FARPROC},
+	System::LibraryLoader::LOAD_LIBRARY_FLAGS,
+};
 
 pub const ERROR_UNIMPLEMENTED: Error = Error::with_hresult(crate::windows::Win32::Foundation::ERROR_CALL_NOT_IMPLEMENTED.to_hresult());
 
-pub fn load_library_a<'n, N: Into<CStrPtr<'n>>>(name: N, flags: LOAD_LIBRARY_FLAGS) -> Result<HMODULE> {
-	let name = name.into();
+pub fn load_library_a<N: AsRef<CStrRef>>(name: N, flags: LOAD_LIBRARY_FLAGS) -> Result<HMODULE> {
+	#![allow(unreachable_patterns, unreachable_code)]
+	let name = name.as_ref();
 	unsafe {
 		windows_adapter! { match windows as windows0xx
 			=> windows0xx::Win32::System::LibraryLoader::LoadLibraryExA(windows0xx::core::PCSTR(name.as_ptr() as *const _), None, flags.into())
 				.map(HMODULE::from)
 				.map_err(Error::from),
 			_ => {
-				#[allow(unreachable_patterns)]
 				let res = match () {
-					#[cfg(feature = "windows-core")]
+					#[cfg(all(windows, feature = "windows-core"))]
 					() => HMODULE::from(crate::windows::core0xx::imp::LoadLibraryExA(name.as_ptr() as *const _, ptr::null_mut::<c_void>().into(), flags.into())),
-					#[cfg(feature = "windows-link")]
+					#[cfg(all(windows, feature = "windows-link", not(feature = "windows-core")))]
 					() => {
 						windows_link::link!("kernel32.dll" "system" fn LoadLibraryExA(name: *const crate::c_char, handle: *mut crate::c_void, flags: LOAD_LIBRARY_FLAGS) -> HMODULE);
 						LoadLibraryExA(name.as_ptr(), ptr::null_mut(), flags)
 					},
 					_ => return Err(ERROR_UNIMPLEMENTED),
 				};
+				#[cfg(windows)]
 				match res {
 					m if m.is_invalid() => Err(Error::from_win32()),
 					m => Ok(m),
@@ -49,8 +47,9 @@ pub fn load_library_a<'n, N: Into<CStrPtr<'n>>>(name: N, flags: LOAD_LIBRARY_FLA
 	}
 }
 
-pub fn load_library_w<'n, N: Into<CStrPtr16<'n>>>(name: N, flags: LOAD_LIBRARY_FLAGS) -> Result<HMODULE> {
-	let name = name.into();
+pub fn load_library_w<'n, N: AsRef<CStrRef16>>(name: N, flags: LOAD_LIBRARY_FLAGS) -> Result<HMODULE> {
+	#![allow(unreachable_patterns, unreachable_code)]
+	let name = name.as_ref();
 	unsafe {
 		windows_adapter! { match windows as windows0xx
 			=> windows0xx::Win32::System::LibraryLoader::LoadLibraryExW(windows0xx::core::PCWSTR(name.as_ptr() as *const _), None, flags.into())
@@ -58,14 +57,14 @@ pub fn load_library_w<'n, N: Into<CStrPtr16<'n>>>(name: N, flags: LOAD_LIBRARY_F
 				.map_err(Error::from),
 			_ => {
 				let res = match () {
-					#[cfg(feature = "windows-link")]
+					#[cfg(all(windows, feature = "windows-link", not(feature = "windows")))]
 					() => {
 						windows_link::link!("kernel32.dll" "system" fn LoadLibraryExW(name: *const crate::c_wchar, handle: *mut crate::c_void, flags: LOAD_LIBRARY_FLAGS) -> HMODULE);
 						LoadLibraryExW(name.as_ptr(), ptr::null_mut(), flags)
 					},
-					#[cfg(not(feature = "windows-link"))]
 					_ => return Err(ERROR_UNIMPLEMENTED),
 				};
+				#[cfg(windows)]
 				match res {
 					m if m.is_invalid() => Err(Error::from_win32()),
 					m => Ok(m),
@@ -76,24 +75,23 @@ pub fn load_library_w<'n, N: Into<CStrPtr16<'n>>>(name: N, flags: LOAD_LIBRARY_F
 }
 
 pub unsafe fn free_library(library: HMODULE) -> Result<()> {
+	#![allow(unreachable_patterns, unreachable_code)]
 	unsafe {
 		windows_adapter! { match windows as windows0xx
 			=> windows0xx::Win32::Foundation::FreeLibrary(library.into())
 				.map_err(Error::from),
 			_ => {
-				use crate::c_bool32;
-
-				#[allow(unreachable_patterns)]
 				let res = match () {
-					#[cfg(feature = "windows-core")]
-					() => c_bool32::from(crate::windows::core0xx::imp::FreeLibrary(library.into())),
-					#[cfg(feature = "windows-link")]
+					#[cfg(all(windows, feature = "windows-core"))]
+					() => crate::c_bool32::from(crate::windows::core0xx::imp::FreeLibrary(library.into())),
+					#[cfg(all(windows, feature = "windows-link", not(feature = "windows-core")))]
 					() => {
-						windows_link::link!("kernel32.dll" "system" fn FreeLibrary(module: HMODULE) -> c_bool32);
+						windows_link::link!("kernel32.dll" "system" fn FreeLibrary(module: HMODULE) -> crate::c_bool32);
 						FreeLibrary(library)
 					},
 					_ => return Err(ERROR_UNIMPLEMENTED),
 				};
+				#[cfg(windows)]
 				match res.get() {
 					false => Err(Error::from_win32()),
 					true => Ok(()),
@@ -103,17 +101,17 @@ pub unsafe fn free_library(library: HMODULE) -> Result<()> {
 	}
 }
 
-pub fn get_proc_address<'n, N: Into<CStrPtr<'n>>>(library: HMODULE, name: N) -> FARPROC {
-	let name = name.into();
+pub fn get_proc_address<N: AsRef<CStrRef>>(library: HMODULE, name: N) -> FARPROC {
+	let name = name.as_ref();
 	unsafe {
 		windows_adapter! { match windows as windows0xx
 			=> windows0xx::Win32::System::LibraryLoader::GetProcAddress(library.into(), windows0xx::core::PCSTR(name.as_ptr() as *const _)),
 			_ => {
 				#[allow(unreachable_patterns)]
 				match () {
-					#[cfg(feature = "windows-core")]
+					#[cfg(all(windows, feature = "windows-core"))]
 					() => crate::windows::core0xx::imp::GetProcAddress(library.into(), name.as_ptr() as *const _),
-					#[cfg(feature = "windows-link")]
+					#[cfg(all(windows, feature = "windows-link", not(feature = "windows-core")))]
 					() => {
 						windows_link::link!("kernel32.dll" "system" fn GetProcAddress(module: HMODULE, name: *const crate::c_char) -> FARPROC);
 						GetProcAddress(library, name.as_ptr())

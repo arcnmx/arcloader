@@ -26,11 +26,12 @@ pub mod LibraryLoader {
 pub mod Diagnostics {
 	pub mod Debug {
 		#[cfg(all(
+			windows,
 			feature = "windows-core",
 			not(all(feature = "windows", feature = "winerror")),
 		))]
 		pub use crate::windows::core0xx::imp::EncodePointer;
-		#[cfg(all(feature = "windows", feature = "winerror"))]
+		#[cfg(all(windows, feature = "windows", feature = "winerror"))]
 		pub use crate::windows::Win32_0xx::System::Diagnostics::Debug::{EncodePointer, DecodePointer};
 	}
 }
@@ -49,12 +50,12 @@ pub mod SystemInformation {
 	};
 
 	pub fn GetSystemDirectoryA(buffer: &mut [c_char]) -> Result<usize> {
-		let res = unsafe {
-			#[allow(unreachable_patterns)]
+		#![allow(unreachable_patterns, unreachable_code)]
+		let res: u32 = unsafe {
 			match () {
-				#[cfg(feature = "windows")]
+				#[cfg(all(windows, feature = "windows"))]
 				() => crate::windows::Win32_0xx::System::SystemInformation::GetSystemDirectoryA(::core::mem::transmute(buffer)),
-				#[cfg(all(not(feature = "windows"), feature = "windows-link"))]
+				#[cfg(all(windows, not(feature = "windows"), feature = "windows-link"))]
 				() => {
 					crate::windows::link!("kernel32.dll" "system" fn GetSystemDirectoryA(buffer: *mut c_char, size: u32) -> u32);
 					GetSystemDirectoryA(buffer.as_ptr(), buffer.len() as _)
@@ -62,6 +63,7 @@ pub mod SystemInformation {
 				_ => return Err(crate::windows::Win32::Foundation::ERROR_CALL_NOT_IMPLEMENTED.into()),
 			}
 		};
+		#[cfg(windows)]
 		match res {
 			0 => Err(Error::from_win32()),
 			len => Ok(len as usize),
@@ -69,12 +71,12 @@ pub mod SystemInformation {
 	}
 
 	pub fn GetSystemDirectoryW(buffer: &mut [c_wchar]) -> Result<usize> {
+		#![allow(unreachable_patterns, unreachable_code)]
 		let res = unsafe {
-			#[allow(unreachable_patterns)]
 			match () {
-				#[cfg(feature = "windows")]
+				#[cfg(all(windows, feature = "windows"))]
 				() => crate::windows::Win32_0xx::System::SystemInformation::GetSystemDirectoryW(::core::mem::transmute(buffer)),
-				#[cfg(all(not(feature = "windows"), feature = "windows-link"))]
+				#[cfg(all(windows, not(feature = "windows"), feature = "windows-link"))]
 				() => {
 					crate::windows::link!("kernel32.dll" "system" fn GetSystemDirectoryW(buffer: *mut c_wchar, size: u32) -> u32);
 					GetSystemDirectoryW(buffer.as_ptr(), buffer.len() as _)
@@ -82,6 +84,7 @@ pub mod SystemInformation {
 				_ => return Err(crate::windows::Win32::Foundation::ERROR_CALL_NOT_IMPLEMENTED.into()),
 			}
 		};
+		#[cfg(windows)]
 		match res {
 			0 => Err(Error::from_win32()),
 			len => Ok(len as usize),

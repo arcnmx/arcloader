@@ -3,7 +3,7 @@
 pub mod wide;
 pub mod windows;
 
-mod nn;
+pub mod nn;
 pub use self::nn::*;
 
 mod ptr;

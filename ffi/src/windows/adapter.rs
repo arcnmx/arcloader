@@ -1189,7 +1189,11 @@ macro_rules! windows_adapter {
 					break 'windows_adapter_core ($expr);
 				}
 			}
-			break 'windows_adapter_core ($($fallback)?);
+			break 'windows_adapter_core ($(
+				$crate::windows::adapter::windows_adapter_core_not! { @exp =>
+					$fallback
+				}
+			)?);
 		}
 	}};
 	(match windows as $id:ident => $expr:expr $(, _ => $fallback:expr$(,)?)?) => {{
@@ -1206,7 +1210,11 @@ macro_rules! windows_adapter {
 					break 'windows_adapter_windows ($expr);
 				}
 			}
-			break 'windows_adapter_windows ($($fallback)?);
+			break 'windows_adapter_windows ($(
+				$crate::windows::adapter::windows_adapter_windows_not! { @exp =>
+					$fallback
+				}
+			)?);
 		}
 	}};
 	(match win32 as $id:ident => $expr:expr $(, _ => $fallback:expr$(,)?)?) => {
@@ -1234,7 +1242,11 @@ macro_rules! windows_adapter {
 					break 'windows_adapter_core ($expr);
 				}
 			}
-			break 'windows_adapter_core ($($fallback)?);
+			break 'windows_adapter_core ($(
+				$crate::windows::adapter::windows_adapter_core_not! { @exp =>
+					$fallback
+				}
+			)?);
 		}
 	}};
 	(match self::windows as $adapter:ident, $id:ident => $expr:expr $(, _ => $fallback:expr$(,)?)?) => {{
@@ -1253,7 +1265,11 @@ macro_rules! windows_adapter {
 					break 'windows_adapter_windows ($expr);
 				}
 			}
-			break 'windows_adapter_windows ($($fallback)?);
+			break 'windows_adapter_windows ($(
+				$crate::windows::adapter::windows_adapter_windows_not! { @exp =>
+					$fallback
+				}
+			)?);
 		}
 	}};
 }
@@ -1292,7 +1308,28 @@ macro_rules! windows_adapter_core061 {
 }
 #[cfg(not(feature = "windows-core-061"))] #[doc(hidden)] #[macro_export]
 macro_rules! windows_adapter_core061 { ($($tt:tt)*) => {}; }
-#[cfg(feature = "windows-060")] #[doc(hidden)] #[macro_export]
+#[cfg(not(feature = "windows-core"))] #[doc(hidden)] #[macro_export]
+macro_rules! windows_adapter_core_not {
+	(@exp => $($tt:tt)*) => {
+		$($tt)*
+	};
+	(@tt => $($tt:tt)*) => {
+		$($tt)*
+	};
+}
+#[cfg(feature = "windows-core")] #[doc(hidden)] #[macro_export]
+macro_rules! windows_adapter_core_not {
+	(@exp => $($tt:tt)*) => {
+		match () {
+			#[cfg(debug_assertions)]
+			() => unreachable!(),
+			#[cfg(not(debug_assertions))]
+			() => unsafe { ::core::hint::unreachable_unchecked() },
+		}
+	};
+	($($tt:tt)*) => {};
+}
+#[cfg(all(windows, feature = "windows-060"))] #[doc(hidden)] #[macro_export]
 macro_rules! windows_adapter_windows060 {
 	($id:ident => $vis:vis mod $mod_:ident { $($tt:tt)* }) => {
 		$vis mod $mod_ {
@@ -1307,9 +1344,9 @@ macro_rules! windows_adapter_windows060 {
 		$($tt)*
 	};
 }
-#[cfg(not(feature = "windows-060"))] #[doc(hidden)] #[macro_export]
+#[cfg(any(not(windows), not(feature = "windows-060")))] #[doc(hidden)] #[macro_export]
 macro_rules! windows_adapter_windows060 { ($($tt:tt)*) => {}; }
-#[cfg(feature = "windows-061")] #[doc(hidden)] #[macro_export]
+#[cfg(all(windows, feature = "windows-061"))] #[doc(hidden)] #[macro_export]
 macro_rules! windows_adapter_windows061 {
 	($id:ident => $vis:vis mod $mod_:ident { $($tt:tt)* }) => {
 		$vis mod $mod_ {
@@ -1324,9 +1361,30 @@ macro_rules! windows_adapter_windows061 {
 		$($tt)*
 	};
 }
-#[cfg(not(feature = "windows-061"))] #[doc(hidden)] #[macro_export]
+#[cfg(any(not(windows), not(feature = "windows-061")))] #[doc(hidden)] #[macro_export]
 macro_rules! windows_adapter_windows061 { ($($tt:tt)*) => {}; }
+#[cfg(any(not(windows), not(feature = "windows")))] #[doc(hidden)] #[macro_export]
+macro_rules! windows_adapter_windows_not {
+	(@exp => $($tt:tt)*) => {
+		$($tt)*
+	};
+	(@tt => $($tt:tt)*) => {
+		$($tt)*
+	};
+}
+#[cfg(all(windows, feature = "windows"))] #[doc(hidden)] #[macro_export]
+macro_rules! windows_adapter_windows_not {
+	(@exp => $($tt:tt)*) => {
+		match () {
+			#[cfg(debug_assertions)]
+			() => unreachable!(),
+			#[cfg(not(debug_assertions))]
+			() => unsafe { ::core::hint::unreachable_unchecked() },
+		}
+	};
+	($($tt:tt)*) => {};
+}
 pub use {
-	windows_adapter_core060, windows_adapter_core061,
-	windows_adapter_windows060, windows_adapter_windows061,
+	windows_adapter_core_not, windows_adapter_core060, windows_adapter_core061,
+	windows_adapter_windows_not, windows_adapter_windows060, windows_adapter_windows061,
 };

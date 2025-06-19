@@ -54,7 +54,6 @@ pub mod core {
 	pub type Result<T> = ::core::result::Result<T, Error>;
 }
 
-#[cfg(windows)]
 #[cfg(feature = "library")]
 pub mod library;
 
