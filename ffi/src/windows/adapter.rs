@@ -1324,6 +1324,7 @@ macro_rules! windows_adapter_core_not {
 			#[cfg(debug_assertions)]
 			() => unreachable!(),
 			#[cfg(not(debug_assertions))]
+			#[allow(unused_unsafe)]
 			() => unsafe { ::core::hint::unreachable_unchecked() },
 		}
 	};
@@ -1379,6 +1380,7 @@ macro_rules! windows_adapter_windows_not {
 			#[cfg(debug_assertions)]
 			() => unreachable!(),
 			#[cfg(not(debug_assertions))]
+			#[allow(unused_unsafe)]
 			() => unsafe { ::core::hint::unreachable_unchecked() },
 		}
 	};
