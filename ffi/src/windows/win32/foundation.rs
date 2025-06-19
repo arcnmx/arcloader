@@ -1,8 +1,63 @@
+use crate::{c_void, c_char, c_wchar, cstr};
+
+pub type ATOM = WORD;
 pub type BYTE = u8;
+pub type CHAR = c_char;
+pub type CCHAR = c_char;
 pub type WORD = u16;
 pub type DWORD = u32;
-pub type LONG = i32;
-pub type ULONGLONG = u64;
+pub type DWORDLONG = u64;
+pub type INT = crate::c_int;
+pub type UINT = crate::c_uint;
+pub type LONG = crate::c_long;
+pub type ULONG = crate::c_ulong;
+pub type LONGLONG = crate::c_longlong;
+pub type ULONGLONG = crate::c_ulonglong;
+pub type FLOAT = f32;
+
+pub type BOOL = crate::c_bool32;
+pub type BOOLEAN = crate::c_bool;
+pub type INT_PTR = isize;
+pub type LONG_PTR = isize;
+#[cfg(target_pointer_width = "32")]
+pub type HALF_PTR = i16;
+#[cfg(target_pointer_width = "64")]
+pub type HALF_PTR = i32;
+
+pub type LPBYTE = *mut BYTE;
+pub type PBYTE = *mut BYTE;
+pub type LPWORD = *mut WORD;
+pub type PWORD = *mut WORD;
+pub type LPDWORD = *mut DWORD;
+pub type PDWORD = *mut DWORD;
+pub type LPDWORDLONG = *mut DWORDLONG;
+pub type PDWORDLONG = *mut DWORDLONG;
+pub type LPINT = *mut INT;
+pub type PINT = *mut INT;
+pub type LPUINT = *mut UINT;
+pub type PUINT = *mut UINT;
+pub type LPLONG = *mut LONG;
+pub type PLONG = *mut LONG;
+pub type LPULONG = *mut ULONG;
+pub type PULONG = *mut ULONG;
+pub type LPLONGLONG = *mut LONGLONG;
+pub type PLONGLONG = *mut LONGLONG;
+pub type LPULONGLONG = *mut ULONGLONG;
+pub type PULONGLONG = *mut ULONGLONG;
+pub type LPBOOL = *mut BOOL;
+pub type PBOOL = *mut BOOL;
+
+pub type PCHAR = *mut CHAR;
+pub type PFLOAT = *mut FLOAT;
+pub type PBOOLEAN = *mut BOOLEAN;
+
+pub type LPVOID = *mut c_void;
+pub type LPCVOID = *const c_void;
+pub type LPSTR = *mut c_char;
+pub type LPWSTR = *mut c_wchar;
+pub type LPCSTR = *const cstr::CStrRef;
+pub type LPCWSTR = *const cstr::CStrRef16;
+pub type LRESULT = LONG_PTR;
 
 pub use crate::windows::adapter::{
 	WIN32_ERROR,
@@ -46,3 +101,5 @@ pub const GENERIC_ALL: GENERIC_ACCESS_RIGHTS = GENERIC_ACCESS_RIGHTS(0x1000_0000
 pub const GENERIC_EXECUTE: GENERIC_ACCESS_RIGHTS = GENERIC_ACCESS_RIGHTS(0x2000_0000);
 pub const GENERIC_READ: GENERIC_ACCESS_RIGHTS = GENERIC_ACCESS_RIGHTS(0x8000_0000);
 pub const GENERIC_WRITE: GENERIC_ACCESS_RIGHTS = GENERIC_ACCESS_RIGHTS(0x4000_0000);
+
+pub const MAX_PATH: usize = 260;

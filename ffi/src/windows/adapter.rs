@@ -599,6 +599,24 @@ impl From<WIN32_ERROR> for HRESULT {
 	}
 }
 
+impl From<HRESULT> for WIN32_ERROR {
+	fn from(e: HRESULT) -> Self {
+		Self::from_hresult(e)
+	}
+}
+
+impl From<WIN32_ERROR> for Error {
+	fn from(e: WIN32_ERROR) -> Self {
+		Self::with_hresult(e.to_hresult())
+	}
+}
+
+impl From<Error> for WIN32_ERROR {
+	fn from(e: Error) -> Self {
+		Self::from_hresult(e.code())
+	}
+}
+
 #[cfg(feature = "std")]
 impl From<io::Error> for WIN32_ERROR {
 	fn from(e: io::Error) -> Self {
