@@ -26,11 +26,11 @@ pub mod LibraryLoader {
 pub mod Diagnostics {
 	pub mod Debug {
 		#[cfg(all(
-			any(feature = "windows-core-060", feature = "windows-core-061"),
-			not(any(feature = "windows-060", feature = "windows-061")),
+			feature = "windows-core",
+			not(all(feature = "windows", feature = "winerror")),
 		))]
-		pub use crate::windows::core_0xx::imp::EncodePointer;
-		#[cfg(any(feature = "windows-060", feature = "windows-061"))]
+		pub use crate::windows::core0xx::imp::EncodePointer;
+		#[cfg(all(feature = "windows", feature = "winerror"))]
 		pub use crate::windows::Win32_0xx::System::Diagnostics::Debug::{EncodePointer, DecodePointer};
 	}
 }

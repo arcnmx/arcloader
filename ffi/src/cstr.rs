@@ -14,7 +14,7 @@ use core::{
 };
 #[cfg(feature = "alloc")]
 use crate::alloc::{
-	borrow::Cow,
+	borrow::{Cow, ToOwned},
 	rc::Rc,
 	sync::Arc,
 };
@@ -410,6 +410,7 @@ impl From<CStrPtr<'_>> for NonNull<c_char> {
 }
 
 #[cfg(windows)]
+#[cfg(feature = "std")]
 #[cfg(feature = "windows-strings-03")]
 impl From<CStrPtr<'_>> for windows_strings_03::HSTRING {
 	fn from(cstr: CStrPtr) -> Self {
@@ -418,6 +419,7 @@ impl From<CStrPtr<'_>> for windows_strings_03::HSTRING {
 }
 
 #[cfg(windows)]
+#[cfg(feature = "std")]
 #[cfg(feature = "windows-strings-04")]
 impl From<CStrPtr<'_>> for windows_strings_04::HSTRING {
 	fn from(cstr: CStrPtr) -> Self {
@@ -644,6 +646,7 @@ impl Borrow<CSlice> for CStr {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Borrow<CSlice> for CString {
 	#[inline]
 	fn borrow(&self) -> &CSlice {
@@ -717,6 +720,7 @@ impl AsRef<CSlice> for CStrRef {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl AsRef<CSlice> for CString {
 	#[inline]
 	fn as_ref(&self) -> &CSlice {
@@ -912,6 +916,7 @@ impl hash::Hash for CStrRef {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl ToOwned for CStrRef {
 	type Owned = CString;
 
@@ -934,6 +939,7 @@ impl Borrow<CStrRef> for CStr {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Borrow<CStrRef> for CString {
 	#[inline]
 	fn borrow(&self) -> &CStrRef {
@@ -985,6 +991,7 @@ impl AsRef<CStrRef> for CStr {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl AsRef<CStrRef> for CString {
 	#[inline]
 	fn as_ref(&self) -> &CStrRef {

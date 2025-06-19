@@ -16,7 +16,7 @@ license = "MIT"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(todo)'] }
 
 [dependencies]
-arcffi = { path = "../ffi", default-features = false }
+arcffi = { path = "../ffi", default-features = false, features = ["std"] }
 dyload = { path = "../dyload", default-features = false, optional = true }
 arcdps-015 = { package = "arcdps", git = "https://github.com/zerthox/arcdps-rs", tag = "0.15.1", default-features = false, optional = true }
 arcdps = { package = "arcdps", git = "https://github.com/zerthox/arcdps-rs", default-features = false, optional = true }
