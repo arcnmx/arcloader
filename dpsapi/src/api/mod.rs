@@ -1,5 +1,5 @@
 use core::{fmt, hash, mem::{size_of, transmute}, num::{NonZeroUsize, NonZeroU64}, ptr};
-use arcffi::{c_bool32, c_void, cstr::{cstr, CStr, CStrPtr, CStrPtr16}, NonNull, UserMallocFn, UserFreeFn};
+use arcffi::{c_bool32, c_void, cstr::{cstr, CStr, CStrRef, CStrRef16, CStrPtr, CStrPtr16}, NonNull, UserMallocFn, UserFreeFn};
 #[cfg(feature = "dyload")]
 #[cfg(feature = "windows")]
 use dyload::windows::{
@@ -56,8 +56,7 @@ pub use self::{
 
 pub type ExportFn0 = unsafe extern "system" fn() -> Option<NonNull<u16>>;
 
-pub type ExportFn3_<'m> = unsafe extern "system" fn(message: CStrPtr<'m>);
-pub type ExportFn3 = for<'m> unsafe extern "system" fn(message: CStrPtr<'m>);
+pub type ExportFn3 = for<'m> unsafe extern "system" fn(message: Option<CStrPtr<'m>>);
 
 pub type Colours5 = [Option<NonNull<ImVec4>>; 5];
 pub type ExportFn5 = for<'c> unsafe extern "system" fn(colours: &'c mut Colours5);
@@ -69,7 +68,7 @@ pub type ExportFn8 = ExportFn3;
 pub type ExportFn9 = for<'e> unsafe extern "system" fn(event: Option<&'e CombatEventData>, sig: Signature);
 pub type ExportFn10 = ExportFn9;
 
-pub type ExtensionListCallbackFn = for<'x> extern "system" fn(exp: &'x ExtensionExports);
+pub type ExtensionListCallbackFn = for<'x> extern "C" fn(exp: &'x ExtensionExports<'x>);
 pub type ExportFnExtensionList = unsafe extern "system" fn(callback: Option<ExtensionListCallbackFn>);
 pub type ExportFnExtensionAdd2 = unsafe extern "system" fn(module: HMODULE) -> usize;
 pub type ExportFnExtensionRemove2 = unsafe extern "system" fn(sig: Signature) -> HMODULE;
@@ -111,29 +110,29 @@ impl ModuleExports {
 		&mut self.module
 	}
 
-	pub fn arc_ini_path<R, F: for<'p> FnOnce(CStrPtr16<'p>) -> R>(&self, f: F) -> Result<R, ()> {
+	pub fn arc_ini_path<R, F: for<'p> FnOnce(&'p CStrRef16) -> R>(&self, f: F) -> Result<R, ()> {
 		unsafe {
 			match self.lookup_e0().and_then(|e0| e0()) {
-				Some(ini_path) => Ok(f(CStrPtr16::new(ini_path))),
+				Some(ini_path) => Ok(f(CStrRef16::with_c_ptr(CStrPtr16::new(ini_path)))),
 				None => Err(()),
 			}
 		}
 	}
 
-	pub fn arc_log<P: for<'m> Into<CStrPtr<'m>>>(&self, message: P) -> Result<(), ()> {
-		let message = message.into();
+	pub fn arc_log<M: AsRef<CStrRef>>(&self, message: M) -> Result<(), ()> {
+		let message = message.as_ref();
 		unsafe {
 			self.lookup_e3()
-				.map(|e| e(message))
+				.map(|e| e(Some(message.as_c_ptr())))
 				.ok_or(())
 		}
 	}
 
-	pub fn arc_log_window<P: for<'m> Into<CStrPtr<'m>>>(&self, message: P) -> Result<(), ()> {
-		let message = message.into();
+	pub fn arc_log_window<M: AsRef<CStrRef>>(&self, message: M) -> Result<(), ()> {
+		let message = message.as_ref();
 		unsafe {
 			self.lookup_e8()
-				.map(|e| e(message))
+				.map(|e| e(Some(message.as_c_ptr())))
 				.ok_or(())
 		}
 	}
@@ -271,6 +270,82 @@ impl ModuleExports {
 			Self::lookup_export(self.module, Self::SYM_EXTENSION_REMOVE2)
 				.map(|f| transmute(f))
 		}
+	}
+}
+
+impl ModuleExports {
+	#[inline]
+	pub fn extension_list<F>(&self, mut f: F) -> Result<(), ()> where
+		F: for<'x> FnMut(&'x ExtensionExports<'x>),
+	{
+		self.extension_list_dyn(&mut f)
+	}
+
+	pub fn extension_list_dyn(&self, f: &mut dyn ExtensionListCallback) -> Result<(), ()> {
+		use core::cell::Cell;
+
+		thread_local! {
+			static LIST_EXTENSION_CB: Cell<Option<*mut dyn ExtensionListCallback>> = Cell::new(None);
+		}
+
+		#[inline(never)]
+		extern "C" fn list_extension_cb(export: &ExtensionExports) {
+			let cb = match LIST_EXTENSION_CB.get() {
+				Some(cb) => unsafe { &mut *cb },
+				None => {
+					// XXX: should never happen...
+					return
+				},
+			};
+			cb.callback(export)
+		}
+
+		struct ListExtensionsGuard;
+
+		impl Drop for ListExtensionsGuard {
+			fn drop(&mut self) {
+				let _cb = LIST_EXTENSION_CB.take();
+				debug_assert!(_cb.is_some());
+			}
+		}
+
+		match LIST_EXTENSION_CB.get() {
+			#[cfg(debug_assertions)]
+			Some(..) => panic!("extension_list re-entered"),
+			#[cfg(not(debug_assertions))]
+			Some(..) => {
+				#[cfg(feature = "log")] {
+					log::error!("extension_list re-entered");
+				}
+				return
+			},
+			None => (),
+		}
+		let _guard = ListExtensionsGuard;
+
+		let cb: *mut dyn ExtensionListCallback = f as *mut (dyn ExtensionListCallback + '_) as *mut (dyn ExtensionListCallback + 'static);
+		LIST_EXTENSION_CB.set(Some(cb));
+		self.arc_extension_list(list_extension_cb)
+	}
+}
+
+#[test]
+fn extension_list() {
+	let exports = ModuleExports::INVALID;
+	let mut extensions = Vec::new();
+	let _res = exports.extension_list(|ex| {
+		extensions.push(ex.sig());
+	});
+	assert!(extensions.is_empty());
+}
+
+pub trait ExtensionListCallback {
+	fn callback<'x>(&mut self, exp: &'x ExtensionExports);
+}
+
+impl<F: for<'x> FnMut(&'x ExtensionExports<'x>)> ExtensionListCallback for F {
+	fn callback<'x>(&mut self, exp: &'x ExtensionExports) {
+		(*self)(exp)
 	}
 }
 
