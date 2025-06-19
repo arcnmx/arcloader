@@ -1,6 +1,25 @@
-use std::{
-	borrow::{Borrow, Cow}, cmp, ffi::{c_char, c_schar, c_uchar, OsStr, OsString}, fmt, hash, marker::PhantomData, mem::{transmute, ManuallyDrop}, ops::Deref, ptr::{self, NonNull}, rc::Rc, slice::from_raw_parts, sync::Arc
+use core::{
+	borrow::Borrow,
+	char::{decode_utf16, DecodeUtf16},
+	cmp,
+	fmt,
+	hash,
+	iter,
+	marker::PhantomData,
+	mem::{transmute, ManuallyDrop},
+	ops::Deref,
+	ptr::{self, NonNull},
+	slice::{self, from_raw_parts},
+	str::Utf8Chunks,
 };
+#[cfg(feature = "alloc")]
+use crate::alloc::{
+	borrow::Cow,
+	rc::Rc,
+	sync::Arc,
+};
+#[cfg(feature = "std")]
+use std::ffi::{OsStr, OsString};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 #[cfg(windows)]
@@ -10,9 +29,11 @@ use crate::wide::WideUtf8Reader;
 
 #[allow(non_camel_case_types)]
 pub type c_wchar = u16;
+pub use crate::{c_char, c_uchar, c_schar};
 
 pub use core::ffi::CStr;
-pub use std::ffi::CString;
+#[cfg(feature = "alloc")]
+pub use crate::alloc::ffi::CString;
 
 pub const EMPTY_CSTR: &'static CStr = unsafe {
 	CStr::from_bytes_with_nul_unchecked(&[0u8])
@@ -122,6 +143,7 @@ impl<'a> CStrPtr<'a> {
 		&self.ptr
 	}
 
+	#[cfg(feature = "alloc")]
 	pub const fn as_c_box(&self) -> &CStrBox {
 		unsafe {
 			transmute(self)
@@ -163,10 +185,12 @@ impl<'a> CStrPtr<'a> {
 	}
 
 	#[cfg(unix)]
+	#[cfg(feature = "std")]
 	pub fn as_os_str(self) -> &'a OsStr {
 		OsStr::from_bytes(self.to_bytes())
 	}
 
+	#[cfg(feature = "std")]
 	pub fn to_os_str(self) -> Cow<'a, OsStr> {
 		#[cfg(not(unix))]
 		use std::ffi::OsString;
@@ -180,6 +204,10 @@ impl<'a> CStrPtr<'a> {
 				Cow::Owned(s) => Cow::Owned(OsString::from(s)),
 			},
 		}
+	}
+
+	pub fn utf8(self) -> Utf8Chunks<'a> {
+		self.to_bytes().utf8_chunks()
 	}
 
 	#[inline]
@@ -251,12 +279,14 @@ impl<'a> From<&'a CSlice> for CStrPtr<'a> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'a> From<&'a CStrBox> for CStrPtr<'a> {
 	fn from(cstr: &'a CStrBox) -> Self {
 		cstr.as_c_ptr()
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'a> From<&'a CString> for CStrPtr<'a> {
 	fn from(cstr: &'a CString) -> Self {
 		Self::with_cstr(cstr.as_c_str())
@@ -270,6 +300,7 @@ impl<'a, T: ?Sized + AsRef<CStr>> From<&'a Box<T>> for CStrPtr<'a> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'a, T: ?Sized + AsRef<CStr>> From<&'a Arc<T>> for CStrPtr<'a> {
 	fn from(cstr: &'a Arc<T>) -> Self {
 		let cstr: &T = &*cstr;
@@ -277,6 +308,7 @@ impl<'a, T: ?Sized + AsRef<CStr>> From<&'a Arc<T>> for CStrPtr<'a> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'a, T: ?Sized + AsRef<CStr>> From<&'a Rc<T>> for CStrPtr<'a> {
 	fn from(cstr: &'a Rc<T>) -> Self {
 		let cstr: &T = &*cstr;
@@ -319,6 +351,7 @@ impl<'a> From<CStrPtr<'a>> for &'a CStr {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'a> From<CStrPtr<'a>> for Cow<'a, CStr> {
 	fn from(cstr: CStrPtr<'a>) -> Self {
 		Cow::Borrowed(cstr.to_c_str())
@@ -337,12 +370,14 @@ impl<'a> From<CStrPtr<'a>> for &'a CStrRef {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'a> From<CStrPtr<'a>> for Cow<'a, CStrRef> {
 	fn from(cstr: CStrPtr<'a>) -> Self {
 		Cow::Borrowed(cstr.as_c_ref())
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl From<CStrPtr<'_>> for CString {
 	fn from(cstr: CStrPtr) -> Self {
 		cstr.to_c_str().to_owned()
@@ -355,6 +390,7 @@ impl From<CStrPtr<'_>> for Box<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl From<CStrPtr<'_>> for Arc<CStr> {
 	fn from(cstr: CStrPtr) -> Self {
 		cstr.to_c_str().into()
@@ -436,15 +472,17 @@ impl fmt::Debug for CStrPtr<'_> {
 impl fmt::Display for CStrPtr<'_> {
 	#[inline]
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Display::fmt(&self.to_string_lossy(), f)
+		fmt::Display::fmt(self.as_c_ref(), f)
 	}
 }
 
 #[repr(transparent)]
+#[cfg(feature = "alloc")]
 pub struct CStrBox {
 	ptr: CStrPtr<'static>,
 }
 
+#[cfg(feature = "alloc")]
 impl CStrBox {
 	#[inline]
 	pub fn new<T: Into<CString>>(cstr: T) -> Self {
@@ -499,12 +537,14 @@ impl CStrBox {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Clone for CStrBox {
 	fn clone(&self) -> Self {
 		Self::with_cstring(self.to_c_str().to_owned())
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Drop for CStrBox {
 	fn drop(&mut self) {
 		drop(unsafe {
@@ -513,6 +553,7 @@ impl Drop for CStrBox {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Deref for CStrBox {
 	type Target = CStrRef;
 
@@ -522,6 +563,7 @@ impl Deref for CStrBox {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl PartialOrd for CStrBox {
 	#[inline]
 	fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
@@ -529,6 +571,7 @@ impl PartialOrd for CStrBox {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Ord for CStrBox {
 	#[inline]
 	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -536,6 +579,7 @@ impl Ord for CStrBox {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl PartialEq for CStrBox {
 	#[inline]
 	fn eq(&self, other: &Self) -> bool {
@@ -543,24 +587,28 @@ impl PartialEq for CStrBox {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Eq for CStrBox {}
 
+#[cfg(feature = "alloc")]
 impl hash::Hash for CStrBox {
 	fn hash<H: hash::Hasher>(&self, state: &mut H) {
 		self.as_c_ref().hash(state)
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl fmt::Debug for CStrBox {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(&self.as_c_ptr(), f)
+		fmt::Debug::fmt(self.as_c_ref(), f)
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl fmt::Display for CStrBox {
 	#[inline]
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Display::fmt(&self.as_c_ptr(), f)
+		fmt::Display::fmt(self.as_c_ref(), f)
 	}
 }
 
@@ -610,6 +658,7 @@ impl Borrow<CSlice> for Box<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Borrow<CSlice> for Rc<CStr> {
 	#[inline]
 	fn borrow(&self) -> &CSlice {
@@ -617,6 +666,7 @@ impl Borrow<CSlice> for Rc<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Borrow<CSlice> for Arc<CStr> {
 	#[inline]
 	fn borrow(&self) -> &CSlice {
@@ -631,6 +681,7 @@ impl Borrow<CSlice> for CStrPtr<'_> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Borrow<CSlice> for CStrBox {
 	#[inline]
 	fn borrow(&self) -> &CSlice {
@@ -673,6 +724,7 @@ impl AsRef<CSlice> for CString {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl AsRef<CSlice> for CStrBox {
 	#[inline]
 	fn as_ref(&self) -> &CSlice {
@@ -687,6 +739,7 @@ impl AsRef<CSlice> for Box<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl AsRef<CSlice> for Rc<CStr> {
 	#[inline]
 	fn as_ref(&self) -> &CSlice {
@@ -694,6 +747,7 @@ impl AsRef<CSlice> for Rc<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl AsRef<CSlice> for Arc<CStr> {
 	#[inline]
 	fn as_ref(&self) -> &CSlice {
@@ -747,6 +801,11 @@ impl CStrRef {
 	}
 
 	#[inline]
+	pub const unsafe fn with_ptr<'p>(cstr: *const Self) -> &'p Self {
+		Self::from_ptr(cstr as *const c_char)
+	}
+
+	#[inline]
 	pub const fn with_cstr(cstr: &CStr) -> &Self {
 		unsafe {
 			Self::from_ptr(cstr.as_ptr())
@@ -786,8 +845,12 @@ impl CStrRef {
 		}
 	}
 
+	pub fn utf8(&self) -> Utf8Chunks<'_> {
+		self.as_c_ptr().utf8()
+	}
+
 	#[inline]
-	pub fn is_empty(&self) -> bool {
+	pub const fn is_empty(&self) -> bool {
 		self.start == 0
 	}
 }
@@ -800,14 +863,26 @@ impl Default for &'_ CStrRef {
 
 impl fmt::Debug for CStrRef {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(&self.as_c_ptr(), f)
+		f.debug_tuple("CStrRef")
+			.field(&self.to_c_str())
+			//.field(&format_args!("\"{}\"", self))
+			.finish()
 	}
 }
 
 impl fmt::Display for CStrRef {
 	#[inline]
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Display::fmt(&self.as_c_ptr(), f)
+		for chunk in self.utf8() {
+			f.write_str(chunk.valid())?;
+			match chunk.invalid() {
+				invalid if invalid.is_empty() => (),
+				invalid => for _ in invalid {
+					fmt::Write::write_char(f, char::REPLACEMENT_CHARACTER)?;
+				},
+			}
+		}
+		Ok(())
 	}
 }
 
@@ -873,6 +948,7 @@ impl Borrow<CStrRef> for Box<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Borrow<CStrRef> for Rc<CStr> {
 	#[inline]
 	fn borrow(&self) -> &CStrRef {
@@ -880,6 +956,7 @@ impl Borrow<CStrRef> for Rc<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl Borrow<CStrRef> for Arc<CStr> {
 	#[inline]
 	fn borrow(&self) -> &CStrRef {
@@ -890,7 +967,7 @@ impl Borrow<CStrRef> for Arc<CStr> {
 impl Borrow<CStrRef> for CStrPtr<'_> {
 	#[inline]
 	fn borrow(&self) -> &CStrRef {
-		CStrRef::new(self.to_c_str())
+		self.as_c_ref()
 	}
 }
 
@@ -922,6 +999,7 @@ impl AsRef<CStrRef> for Box<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl AsRef<CStrRef> for Rc<CStr> {
 	#[inline]
 	fn as_ref(&self) -> &CStrRef {
@@ -929,6 +1007,7 @@ impl AsRef<CStrRef> for Rc<CStr> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl AsRef<CStrRef> for Arc<CStr> {
 	#[inline]
 	fn as_ref(&self) -> &CStrRef {
@@ -939,7 +1018,7 @@ impl AsRef<CStrRef> for Arc<CStr> {
 impl AsRef<CStrRef> for CStrPtr<'_> {
 	#[inline]
 	fn as_ref(&self) -> &CStrRef {
-		CStrRef::new(self.to_c_str())
+		self.as_c_ref()
 	}
 }
 
@@ -987,6 +1066,10 @@ impl<'a> CStrPtr16<'a> {
 		&mut self.ptr
 	}
 
+	pub const fn as_c_ref(self) -> &'a CStrRef16 {
+		CStrRef16::with_c_ptr(self)
+	}
+
 	pub fn as_data(self) -> &'a [u16] {
 		let mut p = self.as_ptr();
 		let mut len = 0;
@@ -1006,6 +1089,7 @@ impl<'a> CStrPtr16<'a> {
 		}
 	}
 
+	#[cfg(feature = "std")]
 	pub fn to_os_string(self) -> OsString {
 		match () {
 			#[cfg(windows)]
@@ -1023,6 +1107,10 @@ impl<'a> CStrPtr16<'a> {
 		WideUtf8Reader::new(self.as_data())
 	}
 
+	pub fn utf16(self) -> DecodeUtf16<iter::Copied<slice::Iter<'a, u16>>> {
+		decode_utf16(self.as_data().iter().copied())
+	}
+
 	#[inline]
 	pub fn is_empty(&self) -> bool {
 		unsafe { *self.ptr.as_ptr() == 0 }
@@ -1031,7 +1119,37 @@ impl<'a> CStrPtr16<'a> {
 	pub const unsafe fn immortal<'p>(self) -> CStrPtr16<'p> {
 		transmute(self)
 	}
+}
 
+struct CStrPtr16Debug<'a>(CStrPtr16<'a>);
+impl fmt::Debug for CStrPtr16Debug<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for c in self.0.utf16() {
+			match c {
+				Ok(c) =>
+					fmt::Write::write_char(f, c),
+				Err(e) =>
+					write!(f, "\\x{:x}", e.unpaired_surrogate()),
+			}?;
+		}
+		Ok(())
+	}
+}
+
+impl fmt::Debug for CStrPtr16<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.debug_tuple("CStrPtr16")
+			.field(&self.ptr)
+			.field(&CStrPtr16Debug(*self))
+			.finish()
+	}
+}
+
+impl fmt::Display for CStrPtr16<'_> {
+	#[inline]
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		fmt::Display::fmt(self.as_c_ref(), f)
+	}
 }
 
 #[cfg(windows)]
@@ -1082,6 +1200,191 @@ impl windows_core_061::Param<windows_core_061::PCWSTR> for CStrPtr16<'_> {
 	}
 }
 
+#[repr(transparent)]
+pub struct CStrRef16 {
+	_cstr: PhantomData<[c_wchar]>,
+	start: c_wchar,
+}
+
+impl CStrRef16 {
+	pub const EMPTY: &'static Self = unsafe {
+		Self::new_ref_unchecked(&0)
+	};
+
+	#[inline]
+	pub fn new<'p, T: Into<CStrPtr16<'p>>>(cstr: T) -> &'p Self {
+		let cstr = cstr.into();
+		Self::with_c_ptr(cstr.into())
+	}
+
+	#[inline]
+	pub const unsafe fn new_ref_unchecked(cstr: &c_wchar) -> &Self {
+		transmute(cstr)
+	}
+
+	#[inline]
+	pub const unsafe fn from_ptr<'p>(cstr: *const c_wchar) -> &'p Self {
+		unsafe {
+			transmute(cstr)
+		}
+	}
+
+	#[inline]
+	pub const unsafe fn with_ptr<'p>(cstr: *const Self) -> &'p Self {
+		Self::from_ptr(cstr as *const c_wchar)
+	}
+
+	#[inline]
+	pub const fn with_c_ptr<'a>(cstr: CStrPtr16<'a>) -> &'a Self {
+		unsafe {
+			transmute(cstr)
+		}
+	}
+
+	#[inline]
+	pub const fn as_ptr(&self) -> *const c_wchar {
+		unsafe {
+			transmute(self)
+		}
+	}
+
+	#[inline]
+	pub const fn as_c_ptr(&self) -> CStrPtr16<'_> {
+		unsafe {
+			transmute(self)
+		}
+	}
+
+	#[inline]
+	pub const fn c_ptr_ref<'r, 'p>(cstr: &'r &'p Self) -> &'r CStrPtr16<'p> {
+		unsafe {
+			transmute(cstr)
+		}
+	}
+
+	pub fn to_data(&self) -> &[u16] {
+		self.as_c_ptr().as_data()
+	}
+
+	pub fn to_data_with_nul(&self) -> &[u16] {
+		self.as_c_ptr().as_data_with_nul()
+	}
+
+	#[cfg(feature = "std")]
+	pub fn to_os_string(&self) -> OsString {
+		self.as_c_ptr().to_os_string()
+	}
+
+	pub fn to_string_lossy(&self) -> String {
+		self.as_c_ptr().to_string_lossy()
+	}
+
+	pub fn utf8(&self) -> WideUtf8Reader<'_> {
+		self.as_c_ptr().utf8()
+	}
+
+	pub fn utf16(&self) -> DecodeUtf16<iter::Copied<slice::Iter<'_, u16>>> {
+		self.as_c_ptr().utf16()
+	}
+
+	#[inline]
+	pub const fn is_empty(&self) -> bool {
+		self.start == 0
+	}
+}
+
+impl Default for &'_ CStrRef16 {
+	fn default() -> Self {
+		CStrRef16::EMPTY
+	}
+}
+
+impl fmt::Debug for CStrRef16 {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.debug_tuple("CStrRef16")
+			.field(&format_args!("\"{}\"", self))
+			.finish()
+	}
+}
+
+impl fmt::Display for CStrRef16 {
+	#[inline]
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for c in self.utf16() {
+			let c = c.unwrap_or(char::REPLACEMENT_CHARACTER);
+			fmt::Write::write_char(f, c)?;
+		}
+		Ok(())
+	}
+}
+
+impl PartialOrd for CStrRef16 {
+	fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+		self.to_data().partial_cmp(other.to_data())
+	}
+}
+
+impl Ord for CStrRef16 {
+	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+		self.to_data().cmp(other.to_data())
+	}
+}
+
+impl PartialEq for CStrRef16 {
+	fn eq(&self, other: &Self) -> bool {
+		self.to_data().eq(other.to_data())
+	}
+}
+
+impl Eq for CStrRef16 {}
+
+impl hash::Hash for CStrRef16 {
+	fn hash<H: hash::Hasher>(&self, state: &mut H) {
+		self.to_data().hash(state)
+	}
+}
+
+#[cfg(todo)]
+impl ToOwned for CStrRef16 {
+	type Owned = CString16;
+
+	fn to_owned(&self) -> Self::Owned {
+		self.to_data().to_owned()
+	}
+}
+
+#[cfg(todo)]
+impl Borrow<CStrRef16> for HSTRING {
+	#[inline]
+	fn borrow(&self) -> &CStrRef16 {
+		CStrRef16::new(self)
+	}
+}
+
+impl Borrow<CStrRef16> for CStrPtr16<'_> {
+	#[inline]
+	fn borrow(&self) -> &CStrRef16 {
+		self.as_c_ref()
+	}
+}
+
+#[cfg(todo)]
+impl AsRef<CStrRef16> for HSTRING {
+	#[inline]
+	fn as_ref(&self) -> &CStrRef16 {
+		CStrRef16::new(self)
+	}
+}
+
+impl AsRef<CStrRef16> for CStrPtr16<'_> {
+	#[inline]
+	fn as_ref(&self) -> &CStrRef16 {
+		self.as_c_ref()
+	}
+}
+
+// TODO: impl Param for CStrPtr16, and CStrRef/CStrRef16 too
+
 pub unsafe fn cstr_opt<'a>(s: &'a *const c_char) -> Option<&'a CStr> {
 	NonNull::new(*s as *mut c_char)
 		.map(|p| CStr::from_ptr(p.as_ptr() as *const c_char))
@@ -1095,11 +1398,13 @@ pub fn cstr_write(dst: &mut [c_char], src: &CStr) -> usize {
 	len
 }
 
+#[cfg(feature = "std")]
 pub unsafe fn cstring_from_os_unchecked<T: Into<OsString>>(os: T) -> CString {
 	let os = os.into();
 	CString::from_vec_unchecked(os.into_encoded_bytes())
 }
 
+#[cfg(feature = "std")]
 pub fn cstring_from_os<T: Into<OsString>>(os: T) -> Result<CString, std::io::Error> {
 	let os = os.into();
 	let is_ascii = os.as_encoded_bytes()
@@ -1122,9 +1427,12 @@ pub fn cstring_from_os<T: Into<OsString>>(os: T) -> Result<CString, std::io::Err
 #[macro_export]
 macro_rules! cstr {
 	(&$($s:tt)*) => {
+		$crate::cstr::cstr!(*$($s)*).as_c_ptr()
+	};
+	(*$($s:tt)*) => {
 		unsafe {
-			$crate::cstr::CStrPtr::with_cstr(
-				$crate::cstr!($($s)*)
+			$crate::cstr::CStrRef::from_ptr(
+				concat!($($s)*, "\0").as_bytes().as_ptr() as *const _
 			)
 		}
 	};

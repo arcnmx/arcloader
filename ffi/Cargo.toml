@@ -77,8 +77,10 @@ winerror = [
 	"windows-061?/Win32_System_Diagnostics_Debug",
 ]
 std = [
+	"alloc",
 	"windows-core-060?/std",
 	"windows-core-061?/std",
 ]
+alloc = []
 unwind = []
 unstable = []

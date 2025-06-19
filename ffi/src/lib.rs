@@ -12,6 +12,27 @@ pub use self::ptr::*;
 #[macro_use]
 pub mod cstr;
 
+#[cfg(feature = "std")]
+pub mod alloc {
+	pub use ::std::{
+		alloc,
+		borrow,
+		boxed,
+		collections,
+		ffi,
+		fmt,
+		rc,
+		slice,
+		str,
+		string,
+		sync,
+		task,
+		vec,
+	};
+}
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+pub extern crate alloc;
+
 #[doc(hidden)]
 #[macro_use]
 pub mod externs;
@@ -20,7 +41,7 @@ pub type UserMallocFn = unsafe extern "C" fn(size: usize, user_data: *mut c_void
 pub type UserFreeFn = unsafe extern "C" fn(p: *mut c_void, user_data: *mut c_void);
 
 pub use core::{
-	ffi::{c_void, c_int, c_uint, c_long, c_ulong, c_char, c_uchar, c_schar},
+	ffi::{c_void, c_int, c_uint, c_long, c_ulong, c_longlong, c_ulonglong, c_char, c_uchar, c_schar},
 	ptr::NonNull,
 };
 pub use core::ffi::{c_int as c_senum, c_uint as c_uenum};
@@ -180,6 +201,20 @@ impl From<c_bool32> for u32 {
 	#[inline(always)]
 	fn from(value: c_bool32) -> u32 {
 		value.value
+	}
+}
+
+impl From<i32> for c_bool32 {
+	#[inline(always)]
+	fn from(value: i32) -> c_bool32 {
+		c_bool32::with(value as u32)
+	}
+}
+
+impl From<c_bool32> for i32 {
+	#[inline(always)]
+	fn from(value: c_bool32) -> i32 {
+		value.value as i32
 	}
 }
 
