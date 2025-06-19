@@ -93,6 +93,12 @@ impl Error {
 	pub fn from_win32() -> Self {
 		Self::from_hresult(HRESULT::last_error())
 	}
+
+	#[cfg(windows)]
+	#[cfg(any(feature = "windows", feature = "windows-link"))]
+	pub fn set_win32(&self) {
+		WIN32_ERROR::from(self.code()).set_last_error()
+	}
 }
 
 #[cfg(feature = "windows-core-060")]
@@ -591,6 +597,12 @@ impl WIN32_ERROR {
 			_ => unimplemented!(),
 		}
 	}
+
+	#[cfg(windows)]
+	#[cfg(any(feature = "windows", feature = "windows-link"))]
+	pub fn set_last_error(self) {
+		crate::windows::Win32::Foundation::SetLastError(self)
+	}
 }
 
 impl From<WIN32_ERROR> for HRESULT {
@@ -1000,6 +1012,20 @@ macro_rules! windows_newtype {
 		#[cfg(feature = "windows-061")]
 		$crate::windows::adapter::windows_newtype! {
 			impl From@path{$crate::windows::Win32_061::Foundation::$name} for $name($field_vis $field_ty);
+		}
+	};
+	(
+		impl From for LibraryLoader::$name:ident($field_vis:vis $field_ty:ty);
+	) => {
+		#[cfg(windows)]
+		#[cfg(feature = "windows-060")]
+		$crate::windows::adapter::windows_newtype! {
+			impl From@path{$crate::windows::Win32_060::System::LibraryLoader::$name} for $name($field_vis $field_ty);
+		}
+		#[cfg(windows)]
+		#[cfg(feature = "windows-061")]
+		$crate::windows::adapter::windows_newtype! {
+			impl From@path{$crate::windows::Win32_061::System::LibraryLoader::$name} for $name($field_vis $field_ty);
 		}
 	};
 	(

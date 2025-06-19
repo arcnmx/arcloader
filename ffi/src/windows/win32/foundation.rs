@@ -65,6 +65,26 @@ pub use crate::windows::adapter::{
 	LPARAM, WPARAM,
 	HMODULE,
 };
+#[cfg(feature = "library")]
+pub use crate::windows::library::free_library as FreeLibrary;
+
+#[cfg(any(feature = "windows", feature = "windows-link"))]
+pub fn SetLastError<E: Into<WIN32_ERROR>>(code: E) {
+	let code = code.into();
+	unsafe {
+		match code {
+			#[cfg(feature = "windows")]
+			code => crate::windows::Win32_0xx::Foundation::SetLastError(code.into()),
+			#[cfg(not(feature = "windows"))]
+			code => {
+				crate::windows::link!("kernel32.dll" "system" fn SetLastError(code: WIN32_ERROR));
+				SetLastError(code)
+			},
+		}
+	}
+}
+
+pub type FARPROC = Option<unsafe extern "system" fn() -> isize>;
 
 pub const ERROR_SUCCESS: WIN32_ERROR = WIN32_ERROR(0);
 pub const ERROR_INVALID_FUNCTION: WIN32_ERROR = WIN32_ERROR(1);

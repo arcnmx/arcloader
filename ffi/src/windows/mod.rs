@@ -25,6 +25,17 @@ pub use self::adapter::{core061 as core0xx, core061};
 #[cfg(all(feature = "windows-core-060", not(any(feature = "windows-core-061"))))]
 pub use self::adapter::core060 as core0xx;
 
+#[cfg(feature = "windows-link")]
+pub use ::windows_link::link;
+#[cfg(not(feature = "windows-link"))]
+#[macro_export]
+macro_rules! link {
+	($dll:literal $abi:tt $vis:vis fn $name:ident($($arg:ident: $arg_ty:ty),*$(,)?) $(-> $res:ty)?) => {
+		/*pub(crate) fn $name($($arg: $arg_ty),*) $(-> $res)? {
+		}*/
+	};
+}
+
 pub mod adapter;
 
 #[cfg(windows)]

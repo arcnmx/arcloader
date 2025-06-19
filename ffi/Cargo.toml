@@ -26,6 +26,7 @@ windows-core-060 = { package = "windows-core", version = "0.60", default-feature
 windows-core-061 = { package = "windows-core", version = "0.61", default-features = false, optional = true }
 windows-060 = { package = "windows", version = "0.60", default-features = false, optional = true }
 windows-061 = { package = "windows", version = "0.61", default-features = false, optional = true }
+windows-link = { version = "0.1", default-features = false, optional = true }
 
 [features]
 default = [
@@ -54,6 +55,9 @@ windows-061 = [
 	"windows-core-061",
 ]
 windows = []
+windows-link = [
+	"dep:windows-link",
+]
 com = [
 	"std",
 	"windows-060?/Win32_System_Com",
@@ -66,6 +70,8 @@ dxgi = [
 library = [
 	"windows-060?/Win32_System_LibraryLoader",
 	"windows-061?/Win32_System_LibraryLoader",
+	"windows-060?/Win32_System_SystemInformation",
+	"windows-061?/Win32_System_SystemInformation",
 ]
 wic = [
 	"com",
