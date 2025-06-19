@@ -63,6 +63,8 @@ log = [
 windows = [
 	"dep:windows",
 	"arcffi/windows-060",
+	"arcffi/winerror",
+	"arcffi/library",
 	"dyload?/windows",
 ]
 unwind = [

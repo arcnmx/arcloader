@@ -1,22 +1,21 @@
 use core::{fmt, hash, mem::{size_of, transmute}, num::{NonZeroUsize, NonZeroU64}, ptr};
-use arcffi::{c_bool32, c_void, cstr::{cstr, CStr, CStrRef, CStrRef16, CStrPtr, CStrPtr16}, NonNull, UserMallocFn, UserFreeFn};
-#[cfg(feature = "dyload")]
+use arcffi::{c_bool32, c_void, cstr::{cstr, CStr, CStrRef, CStrRef16, CStrPtr, CStrPtr16}, NonNull};
 #[cfg(feature = "windows")]
-use dyload::windows::{
-	WinResult,
-	winerror,
+use arcffi::windows::{
+	WinResult, winerror,
+	library::get_proc_address,
 };
 #[cfg(all(windows, feature = "windows"))]
-use windows::{
-	Win32::System::LibraryLoader::GetProcAddress,
-	core::Free as WinFree,
-};
+use windows::core::Free as WinFree;
 use crate::{
 	sig::{Signature, Sig, SigRepr},
 	combat::{CombatArgs, CombatEventData, CombatAgent},
 };
 
-pub use arcffi::windows::adapter::{HMODULE, HWND, LPARAM, WPARAM};
+pub use arcffi::{
+	windows::Win32::Foundation::{HMODULE, HWND, LPARAM, WPARAM},
+	UserMallocFn, UserFreeFn,
+};
 
 pub type ImVec4 = [f32; 4];
 
@@ -357,12 +356,11 @@ impl WinFree for ModuleExports {
 }
 
 impl ModuleExports {
-	#[cfg(windows)]
 	pub unsafe fn lookup_export_win32(module: HMODULE, sym: CStrPtr) -> Option<NonNull<c_void>> {
 		match (module, sym) {
-			#[cfg(all(windows, feature = "windows"))]
+			#[cfg(feature = "windows")]
 			(module, sym) if !module.is_invalid() => {
-				GetProcAddress(module.into(), sym)
+				get_proc_address(module, sym)
 					.map(|f| transmute(f))
 			},
 			_ => {
@@ -374,8 +372,7 @@ impl ModuleExports {
 		}
 	}
 
-	#[cfg(feature = "dyload")]
-	#[cfg(all(windows, feature = "windows"))]
+	#[cfg(feature = "windows")]
 	pub unsafe fn try_lookup_export_win32(module: HMODULE, sym: CStrPtr) -> WinResult<NonNull<c_void>> {
 		Self::lookup_export_win32(module, sym)
 			.ok_or_else(|| winerror!(ERROR_NOT_FOUND, fmt:"arcdps export {sym:?} not found"))
