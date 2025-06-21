@@ -1,5 +1,6 @@
-use core::{mem::transmute, ptr};
-use arcffi::{c_void, cstr::{cstr, CStr, CStrRef, CStrRef16, CStrPtr, CStrPtr16}, NonNull};
+use std::{error::Error as StdError, path::PathBuf};
+use core::{fmt, mem::transmute, ptr};
+use arcffi::{c_void, cstr::{cstr, CStr, CStrRef, CStrRef16, CStrPtr}, NonNull};
 #[cfg(feature = "windows")]
 use arcffi::windows::{
 	WinResult, winerror,
@@ -28,7 +29,7 @@ pub use self::{
 	ExportFn10 as ExportEvtcProcessSkillFn,
 };
 
-pub type ExportFn0 = unsafe extern "system" fn() -> Option<NonNull<u16>>;
+pub type ExportFn0 = unsafe extern "system" fn() -> Option<NonNull<CStrRef16>>;
 
 pub type ExportFn3 = for<'m> unsafe extern "system" fn(message: Option<CStrPtr<'m>>);
 
@@ -46,6 +47,120 @@ pub type ExtensionListCallbackFn = for<'x> extern "C" fn(exp: &'x ExtensionExpor
 pub type ExportFnExtensionList = unsafe extern "system" fn(callback: Option<ExtensionListCallbackFn>);
 pub type ExportFnExtensionAdd2 = unsafe extern "system" fn(module: HMODULE) -> usize;
 pub type ExportFnExtensionRemove2 = unsafe extern "system" fn(sig: Signature) -> HMODULE;
+
+pub trait ApiExports {
+	type ImportError;
+
+	/// API returned an empty result
+	fn import_error_empty(&self) -> Self::ImportError;
+
+	fn arc_ini_path<R, F: for<'p> FnOnce(&'p CStrRef16) -> R>(&self, f: F) -> Result<R, Self::ImportError>;
+	fn arc_log(&self, message: &CStrRef) -> Result<(), Self::ImportError>;
+	fn arc_log_window(&self, message: &CStrRef) -> Result<(), Self::ImportError>;
+	fn arc_ui_colours<R, F: FnOnce(&[Option<&ImVec4>; 5]) -> R>(&self, f: F) -> Result<R, Self::ImportError>;
+	fn arc_ui_flags(&self) -> Result<u64, Self::ImportError>;
+	fn arc_ui_modifiers(&self) -> Result<u64, Self::ImportError>;
+	fn arc_combat_event(&self, ev: &CombatEventData, sig: Signature) -> Result<(), Self::ImportError>;
+	fn arc_combat_event_skill(&self, ev: &CombatEventData, sig: Signature) -> Result<(), Self::ImportError>;
+	fn arc_extension_list(&self, f: ExtensionListCallbackFn) -> Result<(), Self::ImportError>;
+	unsafe fn arc_extension_add2(&self, module: HMODULE) -> Result<usize, Self::ImportError>;
+	unsafe fn arc_extension_remove2(&self, sig: Signature) -> Result<HMODULE, Self::ImportError>;
+
+	fn get_ini_path(&self) -> Result<PathBuf, Self::ImportError> {
+		self.arc_ini_path(|p| PathBuf::from(p.to_os_string()))
+	}
+
+	#[inline]
+	fn log<M: AsRef<CStrRef>>(&self, message: M) -> Result<(), Self::ImportError> {
+		self.arc_log(message.as_ref())
+	}
+
+	#[inline]
+	fn log_window<M: AsRef<CStrRef>>(&self, message: M) -> Result<(), Self::ImportError> {
+		self.arc_log_window(message.as_ref())
+	}
+
+	fn get_ui_colours(&self) -> Result<[Option<ImVec4>; 5], Self::ImportError> {
+		self.arc_ui_colours(|colours| {
+			let [c0, c1, c2, c3, c4] = colours;
+			[c0.copied(), c1.copied(), c2.copied(), c3.copied(), c4.copied()]
+		})
+	}
+
+	#[inline]
+	fn extension_list<F>(&self, mut f: F) -> Result<(), Self::ImportError> where
+		F: for<'x> FnMut(&'x ExtensionExports<'x>),
+	{
+		self.extension_list_dyn(&mut f)
+	}
+
+	fn extension_list_dyn(&self, f: &mut dyn ExtensionListCallback) -> Result<(), Self::ImportError> {
+		use core::cell::Cell;
+
+		thread_local! {
+			static LIST_EXTENSION_CB: Cell<Option<*mut dyn ExtensionListCallback>> = Cell::new(None);
+		}
+
+		#[inline(never)]
+		extern "C" fn list_extension_cb(export: &ExtensionExports) {
+			let cb = match LIST_EXTENSION_CB.get() {
+				Some(cb) => unsafe { &mut *cb },
+				None => {
+					// XXX: should never happen...
+					return
+				},
+			};
+			cb.callback(export)
+		}
+
+		struct ListExtensionsGuard;
+
+		impl Drop for ListExtensionsGuard {
+			fn drop(&mut self) {
+				let _cb = LIST_EXTENSION_CB.take();
+				debug_assert!(_cb.is_some());
+			}
+		}
+
+		match LIST_EXTENSION_CB.get() {
+			#[cfg(debug_assertions)]
+			Some(..) => panic!("extension_list re-entered"),
+			#[cfg(not(debug_assertions))]
+			Some(..) => {
+				#[cfg(feature = "log")] {
+					::log::error!("extension_list re-entered");
+				}
+				return Err(self.import_error_empty())
+			},
+			None => (),
+		}
+		let _guard = ListExtensionsGuard;
+
+		let cb: *mut dyn ExtensionListCallback = f as *mut (dyn ExtensionListCallback + '_) as *mut (dyn ExtensionListCallback + 'static);
+		LIST_EXTENSION_CB.set(Some(cb));
+		self.arc_extension_list(list_extension_cb)
+	}
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct ApiMissing;
+impl fmt::Display for ApiMissing {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.write_str("arcdps export unavailable")
+	}
+}
+impl StdError for ApiMissing {
+}
+
+pub trait ExtensionListCallback {
+	fn callback<'x>(&mut self, exp: &'x ExtensionExports);
+}
+
+impl<F: for<'x> FnMut(&'x ExtensionExports<'x>)> ExtensionListCallback for F {
+	fn callback<'x>(&mut self, exp: &'x ExtensionExports) {
+		(*self)(exp)
+	}
+}
 
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
@@ -82,101 +197,6 @@ impl ModuleExports {
 
 	pub unsafe fn module_mut(&mut self) -> &mut HMODULE {
 		&mut self.module
-	}
-
-	pub fn arc_ini_path<R, F: for<'p> FnOnce(&'p CStrRef16) -> R>(&self, f: F) -> Result<R, ()> {
-		unsafe {
-			match self.lookup_e0().and_then(|e0| e0()) {
-				Some(ini_path) => Ok(f(CStrRef16::with_c_ptr(CStrPtr16::new(ini_path)))),
-				None => Err(()),
-			}
-		}
-	}
-
-	pub fn arc_log<M: AsRef<CStrRef>>(&self, message: M) -> Result<(), ()> {
-		let message = message.as_ref();
-		unsafe {
-			self.lookup_e3()
-				.map(|e| e(Some(message.as_c_ptr())))
-				.ok_or(())
-		}
-	}
-
-	pub fn arc_log_window<M: AsRef<CStrRef>>(&self, message: M) -> Result<(), ()> {
-		let message = message.as_ref();
-		unsafe {
-			self.lookup_e8()
-				.map(|e| e(Some(message.as_c_ptr())))
-				.ok_or(())
-		}
-	}
-
-	pub fn arc_ui_colours<R, F: FnOnce(&[Option<&ImVec4>; 5]) -> R>(&self, f: F) -> Result<R, ()> {
-		let mut colours = [Default::default(); 5];
-		let colours: &[Option<&_>; 5] = unsafe {
-			self.lookup_e5()
-				.map(|e| e(&mut colours))
-				.ok_or(())?;
-			transmute(&colours)
-		};
-
-		Ok(f(colours))
-	}
-
-	pub fn arc_ui_flags(&self) -> Result<u64, ()> {
-		unsafe {
-			self.lookup_e6()
-				.map(|e| e())
-				.ok_or(())
-		}
-	}
-
-	pub fn arc_ui_modifiers(&self) -> Result<u64, ()> {
-		unsafe {
-			self.lookup_e7()
-				.map(|e| e())
-				.ok_or(())
-		}
-	}
-
-	pub fn arc_combat_event(&self, ev: &CombatEventData, sig: Signature) -> Result<(), ()> {
-		unsafe {
-			self.lookup_e9()
-				.map(|e| e(Some(ev), sig))
-				.ok_or(())
-		}
-	}
-
-	pub fn arc_combat_event_skill(&self, ev: &CombatEventData, sig: Signature) -> Result<(), ()> {
-		unsafe {
-			self.lookup_e10()
-				.map(|e| e(Some(ev), sig))
-				.ok_or(())
-		}
-	}
-
-	pub fn arc_extension_list(&self, f: ExtensionListCallbackFn) -> Result<(), ()> {
-		unsafe {
-			self.lookup_extension_list()
-				.map(|e| e(Some(f)))
-				.ok_or(())
-		}
-	}
-
-	pub unsafe fn arc_extension_add2(&self, module: HMODULE) -> Result<usize, ()> {
-		unsafe {
-			self.lookup_extension_add2()
-				.map(|e| e(module))
-				.ok_or(())
-		}
-	}
-
-	pub unsafe fn arc_extension_remove2(&self, sig: Signature) -> Result<HMODULE, ()> {
-		unsafe {
-			self.lookup_extension_remove2()
-				.map(|e| e(sig))
-				.ok_or(())
-		}
 	}
 
 	pub fn lookup_e0(&self) -> Option<ExportFn0> {
@@ -247,71 +267,163 @@ impl ModuleExports {
 	}
 }
 
-impl ModuleExports {
+impl ApiExports for ModuleExports {
+	type ImportError = ApiMissing;
+
 	#[inline]
-	pub fn extension_list<F>(&self, mut f: F) -> Result<(), ()> where
-		F: for<'x> FnMut(&'x ExtensionExports<'x>),
-	{
-		self.extension_list_dyn(&mut f)
+	fn import_error_empty(&self) -> Self::ImportError {
+		ApiMissing
 	}
 
-	pub fn extension_list_dyn(&self, f: &mut dyn ExtensionListCallback) -> Result<(), ()> {
-		use core::cell::Cell;
-
-		thread_local! {
-			static LIST_EXTENSION_CB: Cell<Option<*mut dyn ExtensionListCallback>> = Cell::new(None);
+	fn arc_ini_path<R, F: for<'p> FnOnce(&'p CStrRef16) -> R>(&self, f: F) -> Result<R, Self::ImportError> {
+		unsafe {
+			self.lookup_e0().map(|e0| e0())
+			.ok_or(self.import_error_empty())
+			.and_then(|p| p.ok_or_else(|| self.import_error_empty()))
+			.map(move |p| f(&*p.as_ptr()))
 		}
+	}
 
-		#[inline(never)]
-		extern "C" fn list_extension_cb(export: &ExtensionExports) {
-			let cb = match LIST_EXTENSION_CB.get() {
-				Some(cb) => unsafe { &mut *cb },
-				None => {
-					// XXX: should never happen...
-					return
-				},
-			};
-			cb.callback(export)
+	fn arc_log(&self, message: &CStrRef) -> Result<(), Self::ImportError> {
+		unsafe {
+			self.lookup_e3()
+				.map(|e| e(Some(message.as_c_ptr())))
+				.ok_or(self.import_error_empty())
 		}
+	}
 
-		struct ListExtensionsGuard;
-
-		impl Drop for ListExtensionsGuard {
-			fn drop(&mut self) {
-				let _cb = LIST_EXTENSION_CB.take();
-				debug_assert!(_cb.is_some());
-			}
+	fn arc_log_window(&self, message: &CStrRef) -> Result<(), Self::ImportError> {
+		unsafe {
+			self.lookup_e8()
+				.map(|e| e(Some(message.as_c_ptr())))
+				.ok_or(self.import_error_empty())
 		}
+	}
 
-		match LIST_EXTENSION_CB.get() {
-			#[cfg(debug_assertions)]
-			Some(..) => panic!("extension_list re-entered"),
-			#[cfg(not(debug_assertions))]
-			Some(..) => {
-				#[cfg(feature = "log")] {
-					log::error!("extension_list re-entered");
-				}
-				return Err(())
-			},
-			None => (),
+	fn arc_ui_colours<R, F: FnOnce(&[Option<&ImVec4>; 5]) -> R>(&self, f: F) -> Result<R, Self::ImportError> {
+		let mut colours = [Default::default(); 5];
+		let colours: &[Option<&_>; 5] = unsafe {
+			self.lookup_e5()
+				.map(|e| e(&mut colours))
+				.ok_or(self.import_error_empty())?;
+			transmute(&colours)
+		};
+
+		Ok(f(colours))
+	}
+
+	fn arc_ui_flags(&self) -> Result<u64, Self::ImportError> {
+		unsafe {
+			self.lookup_e6()
+				.map(|e| e())
+				.ok_or(self.import_error_empty())
 		}
-		let _guard = ListExtensionsGuard;
+	}
 
-		let cb: *mut dyn ExtensionListCallback = f as *mut (dyn ExtensionListCallback + '_) as *mut (dyn ExtensionListCallback + 'static);
-		LIST_EXTENSION_CB.set(Some(cb));
-		self.arc_extension_list(list_extension_cb)
+	fn arc_ui_modifiers(&self) -> Result<u64, Self::ImportError> {
+		unsafe {
+			self.lookup_e7()
+				.map(|e| e())
+				.ok_or(self.import_error_empty())
+		}
+	}
+
+	fn arc_combat_event(&self, ev: &CombatEventData, sig: Signature) -> Result<(), Self::ImportError> {
+		unsafe {
+			self.lookup_e9()
+				.map(|e| e(Some(ev), sig))
+				.ok_or(self.import_error_empty())
+		}
+	}
+
+	fn arc_combat_event_skill(&self, ev: &CombatEventData, sig: Signature) -> Result<(), Self::ImportError> {
+		unsafe {
+			self.lookup_e10()
+				.map(|e| e(Some(ev), sig))
+				.ok_or(self.import_error_empty())
+		}
+	}
+
+	fn arc_extension_list(&self, f: ExtensionListCallbackFn) -> Result<(), Self::ImportError> {
+		unsafe {
+			self.lookup_extension_list()
+				.map(|e| e(Some(f)))
+				.ok_or(self.import_error_empty())
+		}
+	}
+
+	unsafe fn arc_extension_add2(&self, module: HMODULE) -> Result<usize, Self::ImportError> {
+		unsafe {
+			self.lookup_extension_add2()
+				.map(|e| e(module))
+				.ok_or(self.import_error_empty())
+		}
+	}
+
+	unsafe fn arc_extension_remove2(&self, sig: Signature) -> Result<HMODULE, Self::ImportError> {
+		unsafe {
+			self.lookup_extension_remove2()
+				.map(|e| e(sig))
+				.ok_or(self.import_error_empty())
+		}
 	}
 }
 
-pub trait ExtensionListCallback {
-	fn callback<'x>(&mut self, exp: &'x ExtensionExports);
-}
+impl ApiExports for &'_ ModuleExports {
+	type ImportError = ApiMissing;
 
-impl<F: for<'x> FnMut(&'x ExtensionExports<'x>)> ExtensionListCallback for F {
-	fn callback<'x>(&mut self, exp: &'x ExtensionExports) {
-		(*self)(exp)
+	#[inline]
+	fn import_error_empty(&self) -> Self::ImportError {
+		ApiMissing
+	}
+
+	fn arc_ini_path<R, F: for<'p> FnOnce(&'p CStrRef16) -> R>(&self, f: F) -> Result<R, Self::ImportError> {
+		ApiExports::arc_ini_path(*self, f)
+	}
+
+	fn arc_log(&self, message: &CStrRef) -> Result<(), Self::ImportError> {
+		ApiExports::arc_log(*self, message)
+	}
+
+	fn arc_log_window(&self, message: &CStrRef) -> Result<(), Self::ImportError> {
+		ApiExports::arc_log_window(*self, message)
+	}
+
+	fn arc_ui_colours<R, F: FnOnce(&[Option<&ImVec4>; 5]) -> R>(&self, f: F) -> Result<R, Self::ImportError> {
+		ApiExports::arc_ui_colours(*self, f)
+	}
+
+	fn arc_ui_flags(&self) -> Result<u64, Self::ImportError> {
+		ApiExports::arc_ui_flags(*self)
+	}
+
+	fn arc_ui_modifiers(&self) -> Result<u64, Self::ImportError> {
+		ApiExports::arc_ui_modifiers(*self)
+	}
+
+	fn arc_combat_event(&self, ev: &CombatEventData, sig: Signature) -> Result<(), Self::ImportError> {
+		ApiExports::arc_combat_event(*self, ev, sig)
+	}
+
+	fn arc_combat_event_skill(&self, ev: &CombatEventData, sig: Signature) -> Result<(), Self::ImportError> {
+		ApiExports::arc_combat_event_skill(*self, ev, sig)
+	}
+
+	fn arc_extension_list(&self, f: ExtensionListCallbackFn) -> Result<(), Self::ImportError> {
+		ApiExports::arc_extension_list(*self, f)
+	}
+
+	unsafe fn arc_extension_add2(&self, module: HMODULE) -> Result<usize, Self::ImportError> {
+		ApiExports::arc_extension_add2(*self, module)
+	}
+
+	unsafe fn arc_extension_remove2(&self, sig: Signature) -> Result<HMODULE, Self::ImportError> {
+		ApiExports::arc_extension_remove2(*self, sig)
 	}
 }
+
+unsafe impl Sync for ModuleExports {}
+unsafe impl Send for ModuleExports {}
 
 #[cfg(all(windows, feature = "windows"))]
 impl WinFree for ModuleExports {

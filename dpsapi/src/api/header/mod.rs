@@ -1,23 +1,23 @@
-use core::{fmt, hash, mem::{size_of, transmute}, num::{NonZeroUsize, NonZeroU64}};
+use core::{ffi::c_void, fmt, hash, mem::{size_of, transmute}, num::{NonZeroUsize, NonZeroU64}, ptr::{self, NonNull}};
 use arcffi::{
-	c_bool32, c_void,
 	cstr::{cstr, CStr, CStrPtr},
 	windows::Win32::Foundation::HMODULE,
-	NonNull,
 };
 use crate::{
 	api::import::ModuleExports,
 	sig::{Signature, Sig, SigRepr},
-	combat::{CombatArgs, CombatEventData, CombatAgent},
+	combat::{CombatEventData, CombatAgent},
 };
 
 pub use arcffi::{
+	c_bool32,
 	windows::Win32::Foundation::{HWND, LPARAM, WPARAM},
 	UserMallocFn, UserFreeFn,
 };
+pub use crate::combat::CombatArgs;
 
 pub type GetInitFn = unsafe extern "system" fn(
-	arc_version: CStrPtr<'static>,
+	arc_version: Option<CStrPtr<'static>>,
 	imgui_ctx: Option<NonNull<c_void>>,
 	id3d: Option<NonNull<c_void>>,
 	module: ModuleExports,
@@ -29,8 +29,9 @@ pub type GetReleaseFn = unsafe extern "system" fn() -> Option<ReleaseFn>;
 pub type InitFn = unsafe extern "C" fn() -> Option<NonNull<ExtensionExports<'static>>>;
 pub type ReleaseFn = unsafe extern "C" fn();
 
+#[derive(Debug, Clone)]
 pub struct InitArgs {
-	pub arc_version: CStrPtr<'static>,
+	pub arc_version: Option<CStrPtr<'static>>,
 	pub imgui_ctx: Option<NonNull<c_void>>,
 	pub id3d: Option<NonNull<c_void>>,
 	pub module: ModuleExports,
@@ -38,6 +39,23 @@ pub struct InitArgs {
 	pub free: Option<UserFreeFn>,
 	pub d3d_version: u32,
 }
+
+impl InitArgs {
+	pub const EMPTY: Self = InitArgs {
+		arc_version: None,
+		imgui_ctx: None,
+		id3d: None,
+		module: ModuleExports::INVALID,
+		malloc: None,
+		free: None,
+		d3d_version: 0,
+	};
+
+	pub const ALLOC_USER_DATA: *mut c_void = ptr::null_mut();
+}
+
+unsafe impl Send for InitArgs {}
+unsafe impl Sync for InitArgs {}
 
 pub type ExtensionFnCombat = for<'c, 's> unsafe extern "C" fn(
 	ev: Option<&'c CombatEventData>,
@@ -47,10 +65,10 @@ pub type ExtensionFnCombat = for<'c, 's> unsafe extern "C" fn(
 	id: Option<NonZeroU64>,
 	revision: u64,
 );
-pub type ExtensionFnWnd = unsafe extern "C" fn(wnd: *mut c_void, msg: u32, w: usize, l: isize);
-pub type ExtensionFnUiImgui = unsafe extern "C" fn(not_charset_or_loading: c_bool32, hide_if_combat_or_ooc: c_bool32);
+pub type ExtensionFnWnd = unsafe extern "C" fn(wnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> u32;
+pub type ExtensionFnUiImgui = unsafe extern "C" fn(not_charsel_or_loading: c_bool32, hide_if_combat_or_ooc: c_bool32);
 pub type ExtensionFnUiOptionsTab = unsafe extern "C" fn();
-pub type ExtensionFnUiOptionsWindows = for<'w> unsafe extern "C" fn(window_name: Option<CStrPtr<'w>>);
+pub type ExtensionFnUiOptionsWindows = for<'w> unsafe extern "C" fn(window_name: Option<CStrPtr<'w>>) -> c_bool32;
 
 #[cfg(feature = "arcdps")]
 pub use arcdps::callbacks::ArcDpsExport as ImpExtensionExports;
@@ -150,7 +168,7 @@ impl<'s> ExtensionExports<'s> {
 
 impl ExtensionExports<'static> {
 	pub unsafe extern "system" fn wrap_init_fn<F, R>(
-		arc_version: CStrPtr<'static>,
+		arc_version: Option<CStrPtr<'static>>,
 		imgui_ctx: Option<NonNull<c_void>>,
 		id3d: Option<NonNull<c_void>>,
 		module: ModuleExports,
@@ -288,6 +306,7 @@ impl<'s> ExtensionHeader<'s> {
 	pub const EMPTY: Self = unsafe {
 		Self::new(None, 0, 0)
 	};
+	pub const IMGUI_VERSION_20210202: u32 = 18000;
 
 	pub const unsafe fn new(sig: Option<Sig>, size: u64, imgui_version: u32) -> Self {
 		Self {
@@ -400,3 +419,62 @@ impl<'s> ExtensionHeaderFailed<'s> {
 		}
 	}
 }
+
+#[macro_export]
+macro_rules! wrap_init_addr {
+	(#[naked] unsafe extern fn get_init_addr() => $unwrapped:path;) => {
+		#[naked]
+		#[no_mangle]
+		pub unsafe extern "system" fn get_init_addr() -> ! {
+			const GET_INIT_ADDR: GetInitFn = ExtensionExports::wrap_init_fn_item(&$unwrapped);
+			core::arch::asm! {
+				"jmp {get_init}",
+				get_init = in(GET_INIT_ADDR) _,
+				options(noreturn),
+			}
+		}
+	};
+	(#[global_asm] unsafe extern fn get_init_addr() => $unwrapped:path;) => {
+		#[link_section = ".text"]
+		static __DPSAPI_GET_INIT_ADDR_PTR: GetInitFn = $crate::api::header::ExtensionExports::wrap_init_fn_item(&$unwrapped);
+		#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+		core::arch::global_asm! {
+			".global get_init_addr",
+			"get_init_addr:",
+			"jmp [rip+{get_init_addr}]",
+			/*"mov [rip+get_init_addr_indirect], eax",
+			"jmp eax",
+			".balign 8",
+			"get_init_addr_indirect:",
+			".8byte {get_init_addr}",*/
+			/*".def",
+			//".type get_init_addr, @function",
+			".type get_init_addr, int",
+			".endef",*/
+			get_init_addr = sym __DPSAPI_GET_INIT_ADDR_PTR,
+		}
+	};
+	(unsafe extern fn get_init_addr() => $unwrapped:path;) => {
+		#[no_mangle]
+		pub unsafe extern "system" fn get_init_addr(
+			arc_version: Option<$crate::_extern::arcffi::cstr::CStrPtr<'static>>,
+			imgui_ctx: Option<::core::ptr::NonNull<::core::ffi::c_void>>,
+			id3d: Option<::core::ptr::NonNull<::core::ffi::c_void>>,
+			module: $crate::api::import::ModuleExports,
+			malloc: Option<$crate::_extern::arcffi::UserMallocFn>,
+			free: Option<$crate::_extern::arcffi::UserFreeFn>,
+			d3d_version: u32,
+		) -> Option<$crate::api::header::InitFn> {
+			$unwrapped($crate::api::header::InitArgs {
+				arc_version,
+				imgui_ctx,
+				id3d,
+				module,
+				malloc,
+				free,
+				d3d_version,
+			}).into()
+		}
+	};
+}
+pub use wrap_init_addr;
