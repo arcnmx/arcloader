@@ -1,8 +1,10 @@
 #![allow(unreachable_patterns)]
 
 use core::{fmt, mem::transmute, num::NonZeroI32, ops};
+#[cfg(feature = "alloc")]
+use std::borrow::Cow;
 #[cfg(feature = "std")]
-use std::{borrow::Cow, error::Error as StdError, io};
+use std::{error::Error as StdError, io};
 use crate::{c_void, c_char, c_wchar, cstr::{CStrPtr, CStrPtr16}};
 
 #[cfg(windows)]
@@ -34,8 +36,17 @@ pub struct Error {
 }
 
 impl Error {
-	pub const S_EMPTY_ERROR: NonZeroI32 = unsafe { NonZeroI32::new_unchecked(i32::from_be_bytes(*b"S_OK")) };
+	#[doc(hidden)]
+	pub const S_EMPTY_ERROR: NonZeroI32 = unsafe { NonZeroI32::new_unchecked(HRESULT::EMPTY_ERROR.0) };
+	#[doc(hidden)]
+	pub const fn hresult_code(code: HRESULT) -> NonZeroI32 {
+		match code.err_code() {
+			Some(c) => c,
+			None => Self::S_EMPTY_ERROR,
+		}
+	}
 
+	#[inline]
 	pub const fn empty() -> Self {
 		Self {
 			code: Self::S_EMPTY_ERROR,
@@ -43,20 +54,28 @@ impl Error {
 		}
 	}
 
+	#[inline]
 	pub const fn from_parts(code: HRESULT, info: Option<ErrorInfo>) -> Self {
 		Self {
-			code: match code.err_code() {
-				Some(c) => c,
-				None => Self::S_EMPTY_ERROR,
-			},
+			code: Self::hresult_code(code),
 			info,
 		}
 	}
 
-	pub const fn with_hresult(code: HRESULT) -> Self {
-		Self::from_parts(code, None)
+	#[inline]
+	pub const fn with_hresult_code(code: NonZeroI32) -> Self {
+		Self {
+			code,
+			info: None,
+		}
 	}
 
+	#[inline]
+	pub const fn with_hresult(code: HRESULT) -> Self {
+		Self::with_hresult_code(Self::hresult_code(code))
+	}
+
+	#[inline]
 	pub fn from_hresult<C: Into<HRESULT>>(code: C) -> Self {
 		Self::with_hresult(code.into())
 	}
@@ -83,10 +102,15 @@ impl Error {
 
 	#[cfg(feature = "std")]
 	pub fn message(&self) -> Cow<'_, str> {
-		match &self.info {
+		match self.extra_info() {
 			Some(msg) => Cow::Borrowed(msg),
 			None => self.code().message(),
 		}
+	}
+
+	#[inline]
+	pub const fn extra_info(&self) -> Option<&ErrorInfo> {
+		self.info.as_ref()
 	}
 
 	#[cfg(windows)]
@@ -104,13 +128,13 @@ impl Error {
 #[cfg(feature = "windows-core-060")]
 impl From<Error> for core060::Error {
 	fn from(e: Error) -> Self {
-		match &e.info {
+		match e.extra_info() {
 			None => core060::Error::from_hresult(e.code().into()),
 			#[cfg(feature = "std")]
 			Some(info) =>
 				core060::Error::new(e.code().into(), info),
 			#[cfg(not(feature = "std"))]
-			&Some(info) => match info {},
+			Some(&info) => match info {},
 		}
 	}
 }
@@ -126,13 +150,13 @@ impl From<core060::Error> for Error {
 #[cfg(feature = "windows-core-061")]
 impl From<Error> for core061::Error {
 	fn from(e: Error) -> Self {
-		match &e.info {
+		match e.extra_info() {
 			None => core061::Error::from_hresult(e.code().into()),
 			#[cfg(feature = "std")]
 			Some(info) =>
 				core061::Error::new(e.code().into(), info),
 			#[cfg(not(feature = "std"))]
-			&Some(info) => match info {},
+			Some(&info) => match info {},
 		}
 	}
 }
@@ -206,10 +230,12 @@ impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{:#08X}", self.code())?;
 		#[cfg(feature = "std")]
-		if let Some(msg) = &self.info {
-			write!(f, ": {}", msg)?;
-		} else if let Some(msg) = self.code().try_message() {
-			write!(f, ": {}", msg)?;
+		if let Some(msg) = self.extra_info() {
+			return write!(f, ": {}", msg)
+		}
+		#[cfg(feature = "alloc")]
+		if let Some(msg) = self.code().try_message() {
+			return write!(f, ": {}", msg)
 		}
 
 		Ok(())
@@ -221,8 +247,10 @@ impl fmt::Debug for Error {
 		let mut f = f.debug_struct("windows::Error");
 
 		f.field("code", &format_args!("{:#08X}", self.code()));
-		f.field("info", &self.info);
-		#[cfg(feature = "std")]
+		#[cfg(feature = "std")] {
+			f.field("info", &self.info);
+		}
+		#[cfg(feature = "alloc")]
 		if let Some(msg) = self.code().try_message() {
 			f.field("message", &msg);
 		}
@@ -522,7 +550,7 @@ impl HRESULT {
 		Self::from_win32(WIN32_ERROR::last_error())
 	}
 
-	#[cfg(feature = "std")]
+	#[cfg(feature = "alloc")]
 	pub fn message(self) -> Cow<'static, str> {
 		#[cfg(feature = "winerror")]
 		if let Some(m) = self.try_message() {
@@ -535,7 +563,7 @@ impl HRESULT {
 		}
 	}
 
-	#[cfg(feature = "std")]
+	#[cfg(feature = "alloc")]
 	pub fn try_message(self) -> Option<Cow<'static, str>> {
 		match self.err_code() {
 			#[cfg(feature = "winerror")]
@@ -546,6 +574,160 @@ impl HRESULT {
 			_ => None,
 		}
 	}
+}
+
+impl HRESULT {
+	pub const OK: Self = Self(0);
+	pub const FALSE: Self = Self(1);
+	pub const EMPTY_ERROR: Self = Self(i32::from_be_bytes(*b"S_OK"));
+
+	pub const BOUNDS: Self = Self(0x8000_000b_u32 as i32);
+	pub const CHANGED_STATE: Self = Self(0x8000_000c_u32 as i32);
+	pub const ILLEGAL_METHOD_CALL: Self = Self(0x8000_000e_u32 as i32);
+	pub const ILLEGAL_STATE_CHANGE: Self = Self(0x8000_000d_u32 as i32);
+	pub const ILLEGAL_DELEGATE_ASSIGNMENT: Self = Self(0x8000_0018u32 as i32);
+	pub const NOTIMPL: Self = Self(0x8000_4001u32 as i32);
+	pub const NOINTERFACE: Self = Self(0x8000_4002u32 as i32);
+	pub const POINTER: Self = Self(0x8000_4003u32 as i32);
+	pub const ABORT: Self = Self(0x8000_4004u32 as i32);
+	pub const FAIL: Self = Self(0x8000_4005u32 as i32);
+	pub const OUTOFMEMORY: Self = Self(0x8000_700e_u32 as i32);
+	pub const STRING_NOT_NULL_TERMINATED: Self = Self(0x8000_0017u32 as i32);
+	pub const UNEXPECTED: Self = Self(0x8000_ffff_u32 as i32);
+	pub const ACCESSDENIED: Self = Self(0x8007_0005u32 as i32);
+	pub const HANDLE: Self = Self(0x8007_0006u32 as i32);
+	pub const INVALIDARG: Self = Self(0x8007_0057u32 as i32);
+	pub const UAC_DISABLED: Self = Self(0x8027_0252u32 as i32);
+	pub const PROTOCOL_EXTENSIONS_NOT_SUPPORTED: Self = Self(0x8376_0003u32 as i32);
+	pub const PROTOCOL_VERSION_NOT_SUPPORTED: Self = Self(0x8376_0005u32 as i32);
+	pub const SUBPROTOCOL_NOT_SUPPORTED: Self = Self(0x8376_0004u32 as i32);
+}
+
+impl HRESULT {
+	pub const CO_ASYNC_WORK_REJECTED: Self = Self(0x8000_4029u32 as i32);
+	pub const CO_ATTEMPT_TO_CREATE_OUTSIDE_CLIENT_CONTEXT: Self = Self(0x8000_4024u32 as i32);
+	pub const CO_BAD_SERVER_NAME: Self = Self(0x8000_4014u32 as i32);
+	pub const CO_CANT_REMOTE: Self = Self(0x8000_4013u32 as i32);
+	pub const CO_CLASS_DISABLED: Self = Self(0x8000_4027u32 as i32);
+	pub const CO_CLRNOTAVAILABLE: Self = Self(0x8000_4028u32 as i32);
+	pub const CO_CLSREG_INCONSISTENT: Self = Self(0x8000_401f_u32 as i32);
+	pub const CO_CREATEPROCESS_FAILURE: Self = Self(0x8000_4018u32 as i32);
+	pub const CO_IIDREG_INCONSISTENT: Self = Self(0x8000_4020u32 as i32);
+	pub const CO_INIT_CLASS_CACHE: Self = Self(0x8000_4009u32 as i32);
+	pub const CO_INIT_MEMORY_ALLOCATOR: Self = Self(0x8000_4008u32 as i32);
+	pub const CO_INIT_ONLY_SINGLE_THREADED: Self = Self(0x8000_4012u32 as i32);
+	pub const CO_INIT_RPC_CHANNEL: Self = Self(0x8000_400a_u32 as i32);
+	pub const CO_INIT_SCM_EXEC_FAILURE: Self = Self(0x8000_4011u32 as i32);
+	pub const CO_INIT_SCM_FILE_MAPPING_EXISTS: Self = Self(0x8000_400f_u32 as i32);
+	pub const CO_INIT_SCM_MAP_VIEW_OF_FILE: Self = Self(0x8000_4010u32 as i32);
+	pub const CO_INIT_SCM_MUTEX_EXISTS: Self = Self(0x8000_400e_u32 as i32);
+	pub const CO_INIT_SHARED_ALLOCATOR: Self = Self(0x8000_4007u32 as i32);
+	pub const CO_INIT_TLS: Self = Self(0x8000_4006u32 as i32);
+	pub const CO_INIT_TLS_CHANNEL_CONTROL: Self = Self(0x8000_400c_u32 as i32);
+	pub const CO_INIT_TLS_SET_CHANNEL_CONTROL: Self = Self(0x8000_400b_u32 as i32);
+	pub const CO_INIT_UNACCEPTED_USER_ALLOCATOR: Self = Self(0x8000_400d_u32 as i32);
+	pub const CO_LAUNCH_PERMSSION_DENIED: Self = Self(0x8000_401b_u32 as i32);
+	pub const CO_MALFORMED_SPN: Self = Self(0x8000_4033u32 as i32);
+	pub const CO_MSI_ERROR: Self = Self(0x8000_4023u32 as i32);
+	pub const CO_NOT_SUPPORTED: Self = Self(0x8000_4021u32 as i32);
+	pub const CO_NO_SECCTX_IN_ACTIVATE: Self = Self(0x8000_402b_u32 as i32);
+	pub const CO_OLE1DDE_DISABLED: Self = Self(0x8000_4016u32 as i32);
+	pub const CO_PREMATURE_STUB_RUNDOWN: Self = Self(0x8000_4035u32 as i32);
+	pub const CO_RELOAD_DLL: Self = Self(0x8000_4022u32 as i32);
+	pub const CO_REMOTE_COMMUNICATION_FAILURE: Self = Self(0x8000_401d_u32 as i32);
+	pub const CO_RUNAS_CREATEPROCESS_FAILURE: Self = Self(0x8000_4019u32 as i32);
+	pub const CO_RUNAS_LOGON_FAILURE: Self = Self(0x8000_401a_u32 as i32);
+	pub const CO_RUNAS_SYNTAX: Self = Self(0x8000_4017u32 as i32);
+	pub const CO_SERVER_INIT_TIMEOUT: Self = Self(0x8000_402a_u32 as i32);
+	pub const CO_SERVER_NOT_PAUSED: Self = Self(0x8000_4026u32 as i32);
+	pub const CO_SERVER_PAUSED: Self = Self(0x8000_4025u32 as i32);
+	pub const CO_SERVER_START_TIMEOUT: Self = Self(0x8000_401e_u32 as i32);
+	pub const CO_START_SERVICE_FAILURE: Self = Self(0x8000_401c_u32 as i32);
+	pub const CO_SXS_CONFIG: Self = Self(0x8000_4032u32 as i32);
+	pub const CO_THREADPOOL_CONFIG: Self = Self(0x8000_4031u32 as i32);
+	pub const CO_TRACKER_CONFIG: Self = Self(0x8000_4030u32 as i32);
+	pub const CO_UNREVOKED_REGISTRATION_ON_APARTMENT_SHUTDOWN: Self = Self(0x8000_4034u32 as i32);
+	pub const CO_WRONG_SERVER_IDENTITY: Self = Self(0x8000_4015u32 as i32);
+
+	pub const CO_ACCESSCHECKFAILED: Self = Self(0x8001_012a_u32 as i32);
+	pub const CO_ACESINWRONGORDER: Self = Self(0x8001_013a_u32 as i32);
+	pub const CO_ACNOTINITIALIZED: Self = Self(0x8001_013f_u32 as i32);
+	pub const CO_CANCEL_DISABLED: Self = Self(0x8001_0140u32 as i32);
+	pub const CO_CONVERSIONFAILED: Self = Self(0x8001_012e_u32 as i32);
+	pub const CO_DECODEFAILED: Self = Self(0x8001_013d_u32 as i32);
+	pub const CO_EXCEEDSYSACLLIMIT: Self = Self(0x8001_0139u32 as i32);
+	pub const CO_FAILEDTOCLOSEHANDLE: Self = Self(0x8001_0138u32 as i32);
+	pub const CO_FAILEDTOCREATEFILE: Self = Self(0x8001_0137u32 as i32);
+	pub const CO_FAILEDTOGENUUID: Self = Self(0x8001_0136u32 as i32);
+	pub const CO_FAILEDTOGETSECCTX: Self = Self(0x8001_0124u32 as i32);
+	pub const CO_FAILEDTOGETTOKENINFO: Self = Self(0x8001_0126u32 as i32);
+	pub const CO_FAILEDTOGETWINDIR: Self = Self(0x8001_0134u32 as i32);
+	pub const CO_FAILEDTOIMPERSONATE: Self = Self(0x8001_0123u32 as i32);
+	pub const CO_FAILEDTOOPENPROCESSTOKEN: Self = Self(0x8001_013c_u32 as i32);
+	pub const CO_FAILEDTOOPENTHREADTOKEN: Self = Self(0x8001_0125u32 as i32);
+	pub const CO_FAILEDTOQUERYCLIENTBLANKET: Self = Self(0x8001_0128u32 as i32);
+	pub const CO_FAILEDTOSETDACL: Self = Self(0x8001_0129u32 as i32);
+	pub const CO_INCOMPATIBLESTREAMVERSION: Self = Self(0x8001_013b_u32 as i32);
+	pub const CO_INVALIDSID: Self = Self(0x8001_012d_u32 as i32);
+	pub const CO_LOOKUPACCNAMEFAILED: Self = Self(0x8001_0132u32 as i32);
+	pub const CO_LOOKUPACCSIDFAILED: Self = Self(0x8001_0130u32 as i32);
+	pub const CO_NETACCESSAPIFAILED: Self = Self(0x8001_012b_u32 as i32);
+	pub const CO_NOMATCHINGNAMEFOUND: Self = Self(0x8001_0131u32 as i32);
+	pub const CO_NOMATCHINGSIDFOUND: Self = Self(0x8001_012f_u32 as i32);
+	pub const CO_PATHTOOLONG: Self = Self(0x8001_0135u32 as i32);
+	pub const CO_SETSERLHNDLFAILED: Self = Self(0x8001_0133u32 as i32);
+	pub const CO_TRUSTEEDOESNTMATCHCLIENT: Self = Self(0x8001_0127u32 as i32);
+	pub const CO_WRONGTRUSTEENAMESYNTAX: Self = Self(0x8001_012c_u32 as i32);
+
+	pub const CO_ACTIVATIONFAILED: Self = Self(0x8004_e021u32 as i32);
+	pub const CO_ACTIVATIONFAILED_CATALOGERROR: Self = Self(0x8004_e023u32 as i32);
+	pub const CO_ACTIVATIONFAILED_EVENTLOGGED: Self = Self(0x8004_e022u32 as i32);
+	pub const CO_ACTIVATIONFAILED_TIMEOUT: Self = Self(0x8004_e024u32 as i32);
+	pub const CO_ALREADYINITIALIZED: Self = Self(0x8004_01f1u32 as i32);
+	pub const CO_APPDIDNTREG: Self = Self(0x8004_01fe_u32 as i32);
+	pub const CO_APPNOTFOUND: Self = Self(0x8004_01f5u32 as i32);
+	pub const CO_APPSINGLEUSE: Self = Self(0x8004_01f6u32 as i32);
+	pub const CO_CALL_OUT_OF_TX_SCOPE_NOT_ALLOWED: Self = Self(0x8004_e030u32 as i32);
+	pub const CO_CANTDETERMINECLASS: Self = Self(0x8004_01f2u32 as i32);
+	pub const CO_CLASSSTRING: Self = Self(0x8004_01f3u32 as i32);
+	pub const CO_DBERROR: Self = Self(0x8004_e02b_u32 as i32);
+	pub const CO_DLLNOTFOUND: Self = Self(0x8004_01f8u32 as i32);
+	pub const CO_ERRORINAPP: Self = Self(0x8004_01f7u32 as i32);
+	pub const CO_ERRORINDLL: Self = Self(0x8004_01f9u32 as i32);
+	pub const CO_EXIT_TRANSACTION_SCOPE_NOT_CALLED: Self = Self(0x8004_e031u32 as i32);
+	pub const CO_IIDSTRING: Self = Self(0x8004_01f4u32 as i32);
+	pub const CO_INITIALIZATIONFAILED: Self = Self(0x8004_e025u32 as i32);
+	pub const CO_ISOLEVELMISMATCH: Self = Self(0x8004_e02f_u32 as i32);
+	pub const CO_NOCOOKIES: Self = Self(0x8004_e02a_u32 as i32);
+	pub const CO_NOIISINTRINSICS: Self = Self(0x8004_e029u32 as i32);
+	pub const CO_NOSYNCHRONIZATION: Self = Self(0x8004_e02e_u32 as i32);
+	pub const CO_NOTCONSTRUCTED: Self = Self(0x8004_e02d_u32 as i32);
+	pub const CO_NOTINITIALIZED: Self = Self(0x8004_01f0u32 as i32);
+	pub const CO_NOTPOOLED: Self = Self(0x8004_e02c_u32 as i32);
+	pub const CO_OBJISREG: Self = Self(0x8004_01fc_u32 as i32);
+	pub const CO_OBJNOTCONNECTED: Self = Self(0x8004_01fd_u32 as i32);
+	pub const CO_OBJNOTREG: Self = Self(0x8004_01fb_u32 as i32);
+	pub const CO_RELEASED: Self = Self(0x8004_01ff_u32 as i32);
+	pub const CO_THREADINGMODEL_CHANGED: Self = Self(0x8004_e028u32 as i32);
+	pub const CO_WRONGOSFORAPP: Self = Self(0x8004_01fa_u32 as i32);
+
+	pub const CO_BAD_PATH: Self = Self(0x8008_0004u32 as i32);
+	pub const CO_CLASS_CREATE_FAILED: Self = Self(0x8008_0001u32 as i32);
+	pub const CO_ELEVATION_DISABLED: Self = Self(0x8008_0017u32 as i32);
+	pub const CO_MISSING_DISPLAYNAME: Self = Self(0x8008_0015u32 as i32);
+	pub const CO_OBJSRV_RPC_FAILURE: Self = Self(0x8008_0006u32 as i32);
+	pub const CO_RUNAS_VALUE_MUST_BE_AAA: Self = Self(0x8008_0016u32 as i32);
+	pub const CO_SCM_ERROR: Self = Self(0x8008_0002u32 as i32);
+	pub const CO_SCM_RPC_FAILURE: Self = Self(0x8008_0003u32 as i32);
+	pub const CO_SERVER_EXEC_FAILURE: Self = Self(0x8008_0005u32 as i32);
+	pub const CO_SERVER_STOPPING: Self = Self(0x8008_0008u32 as i32);
+
+	#[doc(alias = "CO_E_FIRST")]
+	pub const CO_FIRST: Self = Self((Self::CO_S_FIRST.0 as u32 | 0x8000_0000) as i32);
+	#[doc(alias = "CO_E_LAST")]
+	pub const CO_LAST: Self = Self((Self::CO_S_LAST.0 as u32 | 0x8000_0000) as i32);
+	pub const CO_S_FIRST: Self = Self(0x0004_01f0);
+	pub const CO_S_LAST: Self = Self(0x0004_01ff);
 }
 
 impl fmt::Display for HRESULT {

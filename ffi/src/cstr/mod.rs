@@ -113,6 +113,18 @@ impl<'a> CStrPtr<'a> {
 		}
 	}
 
+	pub const fn to_ptr_ref(ptr: Option<Self>) -> *const CStrRef {
+		unsafe {
+			transmute(ptr)
+		}
+	}
+
+	pub const fn opt_to_ref(ptr: Option<Self>) -> Option<&'a CStrRef> {
+		unsafe {
+			transmute(ptr)
+		}
+	}
+
 	pub const unsafe fn immortal<'p>(self) -> CStrPtr<'p> {
 		transmute(self)
 	}

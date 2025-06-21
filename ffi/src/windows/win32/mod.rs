@@ -4,3 +4,5 @@ pub mod Foundation;
 pub mod System;
 #[path = "graphics/mod.rs"]
 pub mod Graphics;
+#[path = "ui/mod.rs"]
+pub mod UI;
