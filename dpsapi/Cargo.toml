@@ -38,7 +38,7 @@ default = [
 ]
 arcdps-015 = ["evtc", "dep:arcdps-015", "nexus?/arc"]
 arcdps = ["evtc-016", "dep:arcdps", "nexus?/arc"]
-evtc-016 = ["dep:evtc"]
+evtc-016 = ["dep:evtc", "evtc"]
 evtc = []
 nexus = ["dep:nexus"]
 host = [

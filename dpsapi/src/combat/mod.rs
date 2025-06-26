@@ -90,17 +90,35 @@ impl CombatEventData {
 	}
 }
 
-#[cfg(feature = "evtc")]
-impl AsRef<ImpCombatEventData> for CombatEventData {
-	fn as_ref(&self) -> &ImpCombatEventData {
-		self.as_imp()
+#[cfg(feature = "evtc-016")]
+impl AsRef<::evtc::Event> for CombatEventData {
+	fn as_ref(&self) -> &::evtc::Event {
+		let imp = self.as_imp();
+		unsafe { transmute(imp) }
 	}
 }
 
-#[cfg(feature = "evtc")]
-impl AsRef<CombatEventData> for ImpCombatEventData {
+#[cfg(feature = "arcdps-015")]
+impl AsRef<::arcdps_015::evtc::Event> for CombatEventData {
+	fn as_ref(&self) -> &::arcdps_015::evtc::Event {
+		let imp = self.as_imp();
+		unsafe { transmute(imp) }
+	}
+}
+
+#[cfg(feature = "evtc-016")]
+impl AsRef<CombatEventData> for ::evtc::Event {
 	fn as_ref(&self) -> &CombatEventData {
-		CombatEventData::from_imp_ref(self)
+		let imp = unsafe { transmute(self) };
+		CombatEventData::from_imp_ref(imp)
+	}
+}
+
+#[cfg(feature = "arcdps-015")]
+impl AsRef<CombatEventData> for ::arcdps_015::evtc::Event {
+	fn as_ref(&self) -> &CombatEventData {
+		let imp = unsafe { transmute(self) };
+		CombatEventData::from_imp_ref(imp)
 	}
 }
 
@@ -446,22 +464,20 @@ impl<'c> CombatArgs<'c> {
 		let (ev, src, dst, id, revision) = args.as_tuple();
 
 		Self {
+			/* too much of a problem when we don't know what version nexus is using...
 			#[cfg(feature = "evtc")]
-			ev: ev.map(CombatEventData::from_imp_ref)
+			ev: ev.map(AsRef::as_ref)
 				.map(Cow::Borrowed),
 			#[cfg(feature = "evtc")]
-			src: src.map(CombatAgent::from_imp_ref)
+			src: src.map(AsRef::as_ref)
 				.map(Cow::Borrowed),
 			#[cfg(feature = "evtc")]
-			dst: dst.map(CombatAgent::from_imp_ref)
-				.map(Cow::Borrowed),
-			#[cfg(not(feature = "evtc"))]
+			dst: dst.map(AsRef::as_ref)
+				.map(Cow::Borrowed),*/
 			ev: ev.map(|a| unsafe { transmute(a) })
 				.map(Cow::Borrowed),
-			#[cfg(not(feature = "evtc"))]
 			src: src.map(|a| unsafe { transmute(a) })
 				.map(Cow::Borrowed),
-			#[cfg(not(feature = "evtc"))]
 			dst: dst.map(|a| unsafe { transmute(a) })
 				.map(Cow::Borrowed),
 			skill_name: Cow::Borrowed(CStrRef::EMPTY),
