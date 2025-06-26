@@ -584,9 +584,11 @@ impl fmt::Display for CStrBox {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct CSlice(pub CStr);
+pub struct CSlice([u8]);
 
 impl CSlice {
+	pub const EMPTY: &'static Self = Self::with_cstr(EMPTY_CSTR);
+
 	#[inline]
 	pub fn new<T: ?Sized + AsRef<CStr>>(cstr: &T) -> &Self {
 		Self::with_cstr(cstr.as_ref())
@@ -598,12 +600,49 @@ impl CSlice {
 			transmute(cstr)
 		}
 	}
+
+	#[inline]
+	pub const fn as_c_str(&self) -> &CStr {
+		unsafe {
+			CStr::from_bytes_with_nul_unchecked(&self.0)
+		}
+	}
+
+	#[inline]
+	pub const fn as_bytes(&self) -> &[u8] {
+		&self.0
+	}
+
+	#[inline]
+	pub const unsafe fn from_bytes_with_nul_unchecked(cstr: &[u8]) -> &Self {
+		unsafe {
+			transmute(cstr)
+		}
+	}
+
+	#[inline]
+	pub unsafe fn from_bytes_unchecked(unterminated: &[u8]) -> &Self {
+		unsafe {
+			let len = unterminated.len() + 1;
+			let p = unterminated.as_ptr();
+			let terminated = from_raw_parts(p, len);
+			Self::from_bytes_with_nul_unchecked(terminated)
+		}
+	}
+
+	#[inline]
+	pub fn split_inner_nuls(&self) -> impl Iterator<Item = &CStr> {
+		self.as_bytes().chunk_by(|b0, _b1| *b0 != 0)
+			.map(|chunk| unsafe {
+				CStr::from_bytes_with_nul_unchecked(chunk)
+			})
+	}
 }
 
 impl Borrow<CStr> for CSlice {
 	#[inline]
 	fn borrow(&self) -> &CStr {
-		&self.0
+		self.as_c_str()
 	}
 }
 
@@ -670,7 +709,14 @@ impl Borrow<CSlice> for CStrRef {
 impl AsRef<CStr> for CSlice {
 	#[inline]
 	fn as_ref(&self) -> &CStr {
-		&self.0
+		self.as_c_str()
+	}
+}
+
+impl AsRef<CStrRef> for CSlice {
+	#[inline]
+	fn as_ref(&self) -> &CStrRef {
+		CStrRef::with_cstr(self.as_c_str())
 	}
 }
 
@@ -739,7 +785,7 @@ impl Deref for CSlice {
 
 	#[inline]
 	fn deref(&self) -> &Self::Target {
-		&self.0
+		self.as_c_str()
 	}
 }
 
@@ -1388,7 +1434,7 @@ macro_rules! cstr {
 	};
 	($($s:tt)*) => {
 		unsafe {
-			::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($($s)*, "\0").as_bytes())
+			::core::ffi::CStr::from_bytes_with_nul_unchecked(concat!($($s)*, "\0").as_bytes())
 		}
 	};
 }
