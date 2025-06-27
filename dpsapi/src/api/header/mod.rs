@@ -265,7 +265,7 @@ fn wrap_init_fn_const() {
 
 	const FN: GetInitFn = ExtensionExports::wrap_init_fn_item(&get_init_fn);
 	let init = unsafe {
-		FN(CStrPtr::EMPTY, None, None, ModuleExports::INVALID, None, None, ARG_CHECK).unwrap()
+		FN(Some(CStrPtr::EMPTY), None, None, ModuleExports::INVALID, None, None, ARG_CHECK).unwrap()
 	};
 
 	let exports = unsafe { &*init().unwrap().as_ptr() };
