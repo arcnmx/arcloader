@@ -22,6 +22,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 [dependencies]
 windows-strings-03 = { package = "windows-strings", version = "0.3", optional = true }
 windows-strings-04 = { package = "windows-strings", version = "0.4", optional = true }
+windows-result-03 = { package = "windows-result", version = "0.3", optional = true }
 windows-core-060 = { package = "windows-core", version = "0.60", default-features = false, optional = true }
 windows-core-061 = { package = "windows-core", version = "0.61", default-features = false, optional = true }
 windows-060 = { package = "windows", version = "0.60", default-features = false, optional = true }
@@ -37,11 +38,13 @@ windows-core-060 = [
 	"windows-core",
 	"dep:windows-core-060",
 	"windows-strings-03",
+	"windows-result-03",
 ]
 windows-core-061 = [
 	"windows-core",
 	"dep:windows-core-061",
 	"windows-strings-04",
+	"windows-result-03",
 ]
 windows-core = []
 windows-060 = [

@@ -125,44 +125,22 @@ impl Error {
 	}
 }
 
-#[cfg(feature = "windows-core-060")]
-impl From<Error> for core060::Error {
+#[cfg(feature = "windows-result-03")]
+impl From<Error> for windows_result_03::Error {
 	fn from(e: Error) -> Self {
 		match e.extra_info() {
-			None => core060::Error::from_hresult(e.code().into()),
+			None => windows_result_03::Error::from_hresult(e.code().into()),
 			#[cfg(feature = "std")]
 			Some(info) =>
-				core060::Error::new(e.code().into(), info),
+				windows_result_03::Error::new(e.code().into(), info),
 			#[cfg(not(feature = "std"))]
 			Some(&info) => match info {},
 		}
 	}
 }
-#[cfg(feature = "windows-core-060")]
-impl From<core060::Error> for Error {
-	fn from(e: core060::Error) -> Self {
-		match e.as_ptr() {
-			p if p.is_null() => Error::from_hresult(e.code()),
-			_ => Error::new(e.code(), e.message()),
-		}
-	}
-}
-#[cfg(feature = "windows-core-061")]
-impl From<Error> for core061::Error {
-	fn from(e: Error) -> Self {
-		match e.extra_info() {
-			None => core061::Error::from_hresult(e.code().into()),
-			#[cfg(feature = "std")]
-			Some(info) =>
-				core061::Error::new(e.code().into(), info),
-			#[cfg(not(feature = "std"))]
-			Some(&info) => match info {},
-		}
-	}
-}
-#[cfg(feature = "windows-core-061")]
-impl From<core061::Error> for Error {
-	fn from(e: core061::Error) -> Self {
+#[cfg(feature = "windows-result-03")]
+impl From<windows_result_03::Error> for Error {
+	fn from(e: windows_result_03::Error) -> Self {
 		match e.as_ptr() {
 			p if p.is_null() => Error::from_hresult(e.code()),
 			_ => Error::new(e.code(), e.message()),
@@ -180,26 +158,14 @@ impl From<Error> for HRESULT {
 		e.code()
 	}
 }
-#[cfg(feature = "windows-core-061")]
-impl From<core061::HRESULT> for Error {
-	fn from(code: core061::HRESULT) -> Self {
+#[cfg(feature = "windows-result-03")]
+impl From<windows_result_03::HRESULT> for Error {
+	fn from(code: windows_result_03::HRESULT) -> Self {
 		Self::from_hresult(code)
 	}
 }
-#[cfg(feature = "windows-core-060")]
-impl From<core060::HRESULT> for Error {
-	fn from(code: core060::HRESULT) -> Self {
-		Self::from_hresult(code)
-	}
-}
-#[cfg(feature = "windows-core-061")]
-impl From<Error> for core061::HRESULT {
-	fn from(e: Error) -> Self {
-		e.code().into()
-	}
-}
-#[cfg(feature = "windows-core-060")]
-impl From<Error> for core060::HRESULT {
+#[cfg(feature = "windows-result-03")]
+impl From<Error> for windows_result_03::HRESULT {
 	fn from(e: Error) -> Self {
 		e.code().into()
 	}
@@ -517,7 +483,7 @@ windows_newtype! {
 }
 
 windows_newtype! {
-	pub struct core::HRESULT(pub i32);
+	pub struct result::HRESULT(pub i32);
 }
 
 impl HRESULT {
@@ -854,30 +820,17 @@ impl From<io::ErrorKind> for WIN32_ERROR {
 	}
 }
 
-#[cfg(feature = "windows-core-060")]
-impl From<WIN32_ERROR> for core060::Error {
+#[cfg(feature = "windows-result-03")]
+impl From<WIN32_ERROR> for windows_result_03::Error {
 	fn from(e: WIN32_ERROR) -> Self {
-		core060::Error::from_hresult(e.to_hresult().into())
+		windows_result_03::Error::from_hresult(e.to_hresult().into())
 	}
 }
-#[cfg(feature = "windows-core-061")]
-impl From<WIN32_ERROR> for core061::Error {
-	fn from(e: WIN32_ERROR) -> Self {
-		core061::Error::from_hresult(e.to_hresult().into())
-	}
-}
-#[cfg(feature = "windows-core-060")]
-impl From<WIN32_ERROR> for Option<core060::Error> {
+#[cfg(feature = "windows-result-03")]
+impl From<WIN32_ERROR> for Option<windows_result_03::Error> {
 	fn from(e: WIN32_ERROR) -> Self {
 		e.to_hresult().err_code()
-			.map(|c| core060::Error::from_hresult(core060::HRESULT(c.get())))
-	}
-}
-#[cfg(feature = "windows-core-061")]
-impl From<WIN32_ERROR> for Option<core061::Error> {
-	fn from(e: WIN32_ERROR) -> Self {
-		e.to_hresult().err_code()
-			.map(|c| core061::Error::from_hresult(core061::HRESULT(c.get())))
+			.map(|c| windows_result_03::Error::from_hresult(windows_result_03::HRESULT(c.get())))
 	}
 }
 
@@ -1180,6 +1133,14 @@ macro_rules! windows_newtype {
 		#[cfg(feature = "windows-core-061")]
 		$crate::windows::adapter::windows_newtype! {
 			impl From@path{$crate::windows::core061::$name} for $name($field_vis $field_ty);
+		}
+	};
+	(
+		impl From for result::$name:ident($field_vis:vis $field_ty:ty);
+	) => {
+		#[cfg(feature = "windows-result-03")]
+		$crate::windows::adapter::windows_newtype! {
+			impl From@path{$crate::windows::result03::$name} for $name($field_vis $field_ty);
 		}
 	};
 	(
@@ -1536,7 +1497,7 @@ macro_rules! windows_adapter_windows061 {
 			$crate::windows::adapter::windows_adapter_windows061! { $id@tt => $($tt)* }
 		}
 	};
-	($id:ident => $($tt:tt)*) => {
+	($id:ident@tt => $($tt:tt)*) => {
 		use $crate::windows::windows061 as $id;
 		$($tt)*
 	};
