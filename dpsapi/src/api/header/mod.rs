@@ -1,12 +1,18 @@
-use core::{ffi::c_void, fmt, hash, mem::{size_of, transmute}, num::{NonZeroUsize, NonZeroU64}, ptr::{self, NonNull}};
+use core::{ffi::c_void, fmt, hash, marker::PhantomData, mem::{size_of, transmute}, num::{NonZeroUsize, NonZeroU64}, ptr::{self, NonNull}};
 use arcffi::{
 	cstr::{cstr, CStr, CStrPtr},
+	nn::nonnull_unwrap_mut,
 	windows::Win32::Foundation::HMODULE,
 };
 use crate::{
 	api::import::ModuleExports,
 	sig::{Signature, Sig, SigRepr},
 	combat::{CombatEventData, CombatAgent},
+};
+#[cfg(feature = "windows")]
+use arcffi::{
+	alloc::borrow::Cow,
+	windows::com::{Interface, InterfacePtr, InterfaceRef, IUnknown},
 };
 
 pub use arcffi::{
@@ -15,6 +21,9 @@ pub use arcffi::{
 	UserMallocFn, UserFreeFn,
 };
 pub use crate::combat::CombatArgs;
+
+#[cfg(feature = "windows")]
+pub type IDXGISwapChain = IUnknown;
 
 pub type GetInitFn = unsafe extern "system" fn(
 	arc_version: Option<CStrPtr<'static>>,
@@ -33,22 +42,20 @@ pub type ReleaseFn = unsafe extern "C" fn();
 pub struct InitArgs {
 	pub arc_version: Option<CStrPtr<'static>>,
 	pub imgui_ctx: Option<NonNull<c_void>>,
-	pub id3d: Option<NonNull<c_void>>,
+	pub id3d: ID3d<'static>,
 	pub module: ModuleExports,
 	pub malloc: Option<UserMallocFn>,
 	pub free: Option<UserFreeFn>,
-	pub d3d_version: u32,
 }
 
 impl InitArgs {
 	pub const EMPTY: Self = InitArgs {
 		arc_version: None,
 		imgui_ctx: None,
-		id3d: None,
+		id3d: ID3d::EMPTY,
 		module: ModuleExports::INVALID,
 		malloc: None,
 		free: None,
-		d3d_version: 0,
 	};
 
 	pub const ALLOC_USER_DATA: *mut c_void = ptr::null_mut();
@@ -157,11 +164,11 @@ impl<'s> ExtensionExports<'s> {
 			.map(|f| f(
 				args.arc_version,
 				args.imgui_ctx,
-				args.id3d,
+				args.id3d.ptr(),
 				args.module,
 				args.malloc,
 				args.free,
-				args.d3d_version,
+				args.id3d.version,
 			)).ok_or(())
 	}
 }
@@ -183,6 +190,9 @@ impl ExtensionExports<'static> {
 		let f: F = unsafe {
 			arcffi::transmute_unchecked(f)
 		};
+		let id3d = unsafe {
+			ID3d::new(id3d, d3d_version)
+		};
 
 		f(InitArgs {
 			arc_version,
@@ -191,7 +201,6 @@ impl ExtensionExports<'static> {
 			module,
 			malloc,
 			free,
-			d3d_version,
 		}).into()
 	}
 
@@ -253,7 +262,7 @@ fn wrap_init_fn_const() {
 	const EXT_CHECK: ExtensionExports<'static> = ExtensionExports::new_failed(Some(CStrPtr::with_cstr(ERR_CHECK)));
 
 	fn get_init_fn(args: InitArgs) -> Option<InitFn> {
-		match args.d3d_version {
+		match args.id3d.version() {
 			ARG_CHECK => Some(init_fn),
 			_ => None
 		}
@@ -422,9 +431,99 @@ impl<'s> ExtensionHeaderFailed<'s> {
 	}
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ID3d<'i> {
+	id3d: Option<NonNull<c_void>>,
+	version: u32,
+	_borrow: PhantomData<&'i c_void>,
+}
+
+impl<'i> ID3d<'i> {
+	pub const EMPTY: Self = unsafe {
+		Self::new(None, 0)
+	};
+
+	pub const unsafe fn new(id3d: Option<NonNull<c_void>>, version: u32) -> Self {
+		Self {
+			id3d,
+			version,
+			_borrow: PhantomData,
+		}
+	}
+
+	pub const fn version(&self) -> u32 {
+		self.version
+	}
+
+	pub const fn as_ptr(&self) -> *mut c_void {
+		nonnull_unwrap_mut(self.id3d)
+	}
+
+	#[cfg(feature = "windows")]
+	pub fn as_unknown_ref(&self) -> Option<&IUnknown> {
+		match self.version {
+			9..=12 => self.id3d.as_ref().map(|id3d| unsafe {
+				InterfacePtr::from_nn_borrowed(id3d)
+			}),
+			_ => None,
+		}
+	}
+
+	#[cfg(feature = "windows")]
+	pub fn as_unknown(&self) -> Option<InterfaceRef<'i, IUnknown>> {
+		self.as_unknown_ref()
+			.map(|unk| unsafe {
+				InterfaceRef::from_raw(unk.as_nn())
+			})
+	}
+
+	#[cfg(feature = "windows")]
+	pub fn as_swap_chain_ref(&self) -> Option<Cow<'_, IDXGISwapChain>> {
+		match self.version {
+			11 => self.id3d.as_ref().map(|id3d| Cow::Borrowed(unsafe {
+				InterfacePtr::from_nn_borrowed(id3d)
+			})),
+			// doesn't exactly work yet if IDXGISwapChain::IID isn't real...
+			#[cfg(todo)]
+			_ => self.as_unknown().and_then(|id3d| id3d.cast().ok().map(Cow::Owned)),
+			_ => None,
+		}
+	}
+
+	#[cfg(feature = "windows")]
+	pub fn as_swap_chain(&self) -> Option<InterfaceRef<'i, IDXGISwapChain>> {
+		match self.version {
+			11 => self.id3d.map(|id3d| unsafe {
+				InterfaceRef::from_raw(id3d)
+			}),
+			_ => None,
+		}
+	}
+
+	pub const fn version_ref(&self) -> &u32 {
+		&self.version
+	}
+
+	pub unsafe fn version_mut(&mut self) -> &mut u32 {
+		&mut self.version
+	}
+
+	pub const fn ptr(&self) -> Option<NonNull<c_void>> {
+		self.id3d
+	}
+
+	pub const fn ptr_ref(&self) -> &Option<NonNull<c_void>> {
+		&self.id3d
+	}
+
+	pub unsafe fn ptr_mut(&mut self) -> &mut Option<NonNull<c_void>> {
+		&mut self.id3d
+	}
+}
+
 #[macro_export]
-macro_rules! wrap_init_addr {
-	(#[naked] unsafe extern fn get_init_addr() => $unwrapped:path;) => {
+macro_rules! arc_export {
+	(#[naked] unsafe extern fn get_init_addr() => $unwrapped:path; $($($rest:tt)+)?) => {
 		#[naked]
 		#[no_mangle]
 		pub unsafe extern "system" fn get_init_addr() -> ! {
@@ -435,8 +534,11 @@ macro_rules! wrap_init_addr {
 				options(noreturn),
 			}
 		}
+		$(
+			$crate::api::header::arc_export! { $($rest)* }
+		)?
 	};
-	(#[global_asm] unsafe extern fn get_init_addr() => $unwrapped:path;) => {
+	(#[global_asm] unsafe extern fn get_init_addr() => $unwrapped:path; $($($rest:tt)+)?) => {
 		#[link_section = ".text"]
 		static __DPSAPI_GET_INIT_ADDR_PTR: GetInitFn = $crate::api::header::ExtensionExports::wrap_init_fn_item(&$unwrapped);
 		#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
@@ -455,8 +557,12 @@ macro_rules! wrap_init_addr {
 			".endef",*/
 			get_init_addr = sym __DPSAPI_GET_INIT_ADDR_PTR,
 		}
+
+		$(
+			$crate::api::header::arc_export! { $($rest)* }
+		)?
 	};
-	(unsafe extern fn get_init_addr() => $unwrapped:path;) => {
+	(unsafe extern fn get_init_addr() => $unwrapped:path; $($($rest:tt)+)?) => {
 		#[no_mangle]
 		pub unsafe extern "system" fn get_init_addr(
 			arc_version: Option<$crate::_extern::arcffi::cstr::CStrPtr<'static>>,
@@ -470,13 +576,46 @@ macro_rules! wrap_init_addr {
 			$unwrapped($crate::api::header::InitArgs {
 				arc_version,
 				imgui_ctx,
-				id3d,
+				id3d: $crate::api::header::ID3d::new(id3d, d3d_version),
 				module,
 				malloc,
 				free,
-				d3d_version,
 			}).into()
 		}
+		$(
+			$crate::api::header::arc_export! { $($rest)* }
+		)?
+	};
+	(unsafe extern fn get_release_addr() => $unwrapped:path; $($($rest:tt)+)?) => {
+		#[no_mangle]
+		pub unsafe extern "system" fn get_release_addr() -> Option<$crate::api::header::ReleaseFn> {
+			$unwrapped().into()
+		}
+		$(
+			$crate::api::header::arc_export! { $($rest)* }
+		)?
+	};
+	(extern fn get_update_url() => $unwrapped:path; $($($rest:tt)+)?) => {
+		#[no_mangle]
+		pub unsafe extern "system" fn get_update_url() -> Option<$crate::_extern::arcffi::cstr::CStrPtr16<'static>> {
+			// TODO: reserve static storage if !alloc or something...
+			match $unwrapped() {
+				Some(url) => Some(
+					$crate::_extern::arcffi::cstr::CStrBox16::from(url).into_ptr()
+				),
+				None => None,
+			}
+		}
+		$(
+			$crate::api::header::arc_export! { $($rest)* }
+		)?
 	};
 }
+pub use arc_export;
+#[macro_export]
+#[deprecated = "arc_export!"]
+macro_rules! wrap_init_addr {
+	($($tt:tt)*) => { $crate::api::header::arc_export! { $($tt)* } };
+}
+#[allow(deprecated)]
 pub use wrap_init_addr;
