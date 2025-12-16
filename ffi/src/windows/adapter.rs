@@ -892,6 +892,35 @@ impl core061::Free for HMODULE {
 }
 
 windows_newtype! {
+	pub struct Foundation::HANDLE(pub *mut c_void);
+}
+
+impl HANDLE {
+	pub fn is_invalid(&self) -> bool {
+		windows_adapter! {
+			match win32 as win32_handle => win32_handle::Foundation::HANDLE::is_invalid(self.into()),
+			_ => m.0.is_null()
+		}
+	}
+}
+
+#[cfg(windows)]
+#[cfg(feature = "windows-060")]
+impl core060::Free for HANDLE {
+	unsafe fn free(&mut self) {
+		<Foundation060::HANDLE as core060::Free>::free(self.into())
+	}
+}
+
+#[cfg(windows)]
+#[cfg(feature = "windows-061")]
+impl core061::Free for HANDLE {
+	unsafe fn free(&mut self) {
+		<Foundation061::HANDLE as core061::Free>::free(self.into())
+	}
+}
+
+windows_newtype! {
 	pub struct Foundation::HWND(pub *mut c_void);
 }
 

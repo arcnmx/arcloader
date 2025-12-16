@@ -67,7 +67,7 @@ pub use crate::windows::adapter::{
 	WIN32_ERROR,
 	FILETIME, GENERIC_ACCESS_RIGHTS,
 	LPARAM, WPARAM,
-	HMODULE, HWND,
+	HANDLE, HMODULE, HWND,
 };
 #[cfg(feature = "library")]
 pub use crate::windows::library::free_library as FreeLibrary;
@@ -85,6 +85,24 @@ pub fn SetLastError<E: Into<WIN32_ERROR>>(code: E) {
 				SetLastError(code)
 			},
 		}
+	}
+}
+
+#[cfg(any(feature = "windows", feature = "windows-link"))]
+pub unsafe fn CloseHandle<H: Into<HANDLE>>(handle: H) -> crate::windows::core::Result<()> {
+	let handle = handle.into();
+	match handle {
+		#[cfg(feature = "windows")]
+		handle => crate::windows::Win32_0xx::Foundation::CloseHandle(handle.into())
+			.map_err(Into::into),
+		#[cfg(not(feature = "windows"))]
+		handle => {
+			crate::windows::link!("kernel32.dll" "system" fn CloseHandle(handle: HANDLE) -> BOOL);
+			match CloseHandle(handle).get() {
+				false => Err(crate::windows::core::Error::from_win32()),
+				true => Ok(()),
+			}
+		},
 	}
 }
 
