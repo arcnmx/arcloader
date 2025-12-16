@@ -870,7 +870,7 @@ impl HMODULE {
 			#[cfg(windows)]
 			#[cfg(feature = "windows-060")]
 			m => Foundation060::HMODULE::is_invalid(m.into()),
-			m => !m.0.is_null(),
+			m => m.0.is_null(),
 		}
 	}
 }
@@ -904,7 +904,7 @@ impl HWND {
 			#[cfg(windows)]
 			#[cfg(feature = "windows-060")]
 			m => Foundation060::HWND::from(*m).is_invalid(),
-			m => !m.0.is_null(),
+			m => m.0.is_null(),
 		}
 	}
 }
@@ -1314,7 +1314,7 @@ macro_rules! windows_adapter {
 	($vis:vis mod win32 as $id:ident => $($it:item)*) => {
 		$crate::windows::adapter::windows_adapter! {
 			$vis mod windows as adapter_windows0xx =>
-				use adapter_windows0xx as $id;
+				use adapter_windows0xx::Win32 as $id;
 				$($it)*
 		}
 	};
@@ -1363,10 +1363,10 @@ macro_rules! windows_adapter {
 	(match win32 as $id:ident => $expr:expr $(, _ => $fallback:expr$(,)?)?) => {
 		$crate::windows::adapter::windows_adapter! {
 			match windows as adapter_windows0xx => {
-				use adapter_windows0xx as $id;
+				use adapter_windows0xx::Win32 as $id;
 				$expr
 			}
-			$(, _ => $fallback:expr)?
+			$(, _ => $fallback)?
 		}
 	};
 	(match self::core as $adapter:ident, $id:ident => $expr:expr $(, _ => $fallback:expr$(,)?)?) => {{
