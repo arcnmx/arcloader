@@ -194,7 +194,7 @@ impl StdError for Error {
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{:#08X}", self.code())?;
+		write!(f, "{:#010X}", self.code())?;
 		#[cfg(feature = "std")]
 		if let Some(msg) = self.extra_info() {
 			return write!(f, ": {}", msg)
@@ -212,7 +212,7 @@ impl fmt::Debug for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let mut f = f.debug_struct("windows::Error");
 
-		f.field("code", &format_args!("{:#08X}", self.code()));
+		f.field("code", &format_args!("{:#010X}", self.code()));
 		#[cfg(feature = "std")] {
 			f.field("info", &self.info);
 		}
@@ -525,7 +525,7 @@ impl HRESULT {
 
 		match self.err_code().map(|c| c.get() as u32) {
 			None => Cow::Borrowed("ERROR_SUCCESS"),
-			Some(code) => Cow::Owned(format!("{code:#08x}")),
+			Some(code) => Cow::Owned(format!("{code:#010x}")),
 		}
 	}
 
