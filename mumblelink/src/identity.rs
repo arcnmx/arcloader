@@ -126,8 +126,9 @@ impl MumbleIdentity {
 	}
 
 	pub fn update_from_parsed(id: &Identity) -> NexusIdentityUpdate {
+		// XXX: silent truncation is bad, and may produce an invalid utf8 string
 		let mut name = [0u8; 20];
-		let name_len = id.name.len().min(name.len());
+		let name_len = id.name.len().min(name.len() - 1);
 		name[..name_len].copy_from_slice(id.name[..name_len].as_bytes());
 		NexusIdentityUpdate {
 			name,
