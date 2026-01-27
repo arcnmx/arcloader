@@ -128,7 +128,7 @@ impl MumbleIdentity {
 	pub fn update_from_parsed(id: &Identity) -> NexusIdentityUpdate {
 		let mut name = [0u8; 20];
 		let name_len = id.name.len().min(name.len());
-		name[..name_len].copy_from_slice(id.name[..].as_bytes());
+		name[..name_len].copy_from_slice(id.name[..name_len].as_bytes());
 		NexusIdentityUpdate {
 			name,
 			profession: id.profession as u32,
