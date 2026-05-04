@@ -306,7 +306,9 @@ impl<'s> ExtensionHeader<'s> {
 	pub const EMPTY: Self = unsafe {
 		Self::new(None, 0, 0)
 	};
+	/// supported up through to arcdps version 1.2026.416.1629
 	pub const IMGUI_VERSION_20210202: u32 = 18000;
+	pub const IMGUI_VERSION_20260507: u32 = 19270;
 
 	pub const unsafe fn new(sig: Option<Sig>, size: u64, imgui_version: u32) -> Self {
 		Self {
