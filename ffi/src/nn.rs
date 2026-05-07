@@ -13,21 +13,21 @@ pub const fn nonnull_const<P: ?Sized>(p: *const P) -> Option<NonNull<P>> {
 }
 
 #[inline]
-pub fn nonnull_unwrap_unchecked<T: ?Sized>(p: Option<NonNull<T>>) -> NonNull<T> {
+pub const fn nonnull_unwrap_unchecked<T: ?Sized>(p: Option<NonNull<T>>) -> NonNull<T> {
 	unsafe {
 		transmute(p)
 	}
 }
 
 #[inline]
-pub fn nonnull_unwrap<T: ?Sized>(p: Option<NonNull<T>>) -> *const T {
+pub const fn nonnull_unwrap<T: ?Sized>(p: Option<NonNull<T>>) -> *const T {
 	unsafe {
 		transmute(p)
 	}
 }
 
 #[inline]
-pub fn nonnull_unwrap_mut<T: ?Sized>(p: Option<NonNull<T>>) -> *mut T {
+pub const fn nonnull_unwrap_mut<T: ?Sized>(p: Option<NonNull<T>>) -> *mut T {
 	unsafe {
 		transmute(p)
 	}
@@ -57,6 +57,7 @@ pub const unsafe fn nonnull_ref_unchecked<P: ?Sized>(p: *const P) -> NonNull<P> 
 	}
 }
 
+/// TODO: MSRV>=1.83? const fn
 pub fn nonnull_ref_bytes<P: ?Sized>(p: &P) -> NonNull<[u8]> {
 	let size = size_of_val(p);
 	let ptr = ptr::slice_from_raw_parts_mut(p as *const P as *const u8 as *mut u8, size);
@@ -65,6 +66,7 @@ pub fn nonnull_ref_bytes<P: ?Sized>(p: &P) -> NonNull<[u8]> {
 	}
 }
 
+/// TODO: MSRV>=1.83? const fn
 pub fn nonnull_bytes<P>(p: NonNull<P>) -> NonNull<[u8]> {
 	let size = size_of::<P>();
 	let ptr = ptr::slice_from_raw_parts_mut(p.cast::<u8>().as_ptr(), size);
@@ -195,7 +197,7 @@ pub unsafe fn opt_unwrap_unchecked<'a, T>(opt: Option<T>) -> T {
 }
 
 #[inline]
-pub unsafe fn opt_ref_unwrap_unchecked<'a, T>(opt: &Option<T>) -> &T {
+pub const unsafe fn opt_ref_unwrap_unchecked<'a, T>(opt: &Option<T>) -> &T {
 	match opt {
 		#[cfg(debug_assertions)]
 		opt => opt.as_ref().unwrap(),
