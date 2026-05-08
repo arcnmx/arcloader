@@ -1,5 +1,6 @@
-use core::{ffi::c_void, fmt, hash, marker::PhantomData, mem::{size_of, transmute}, num::{NonZeroUsize, NonZeroU64}, ptr::{self, NonNull}};
+use core::{ffi::c_void, fmt, hash, marker::PhantomData, mem::{size_of, transmute}, num::{NonZeroUsize, NonZeroU64}, ptr::NonNull};
 use arcffi::{
+	alloc::borrow::Cow,
 	cstr::{cstr, CStr, CStrPtr},
 	nn::nonnull_unwrap_mut,
 	windows::Win32::Foundation::HMODULE,
@@ -9,9 +10,8 @@ use crate::{
 	sig::{Signature, Sig, SigRepr},
 	combat::{CombatEventData, CombatAgent},
 };
-#[cfg(feature = "windows")]
+#[cfg(all(feature = "arcffi-com", feature = "windows"))]
 use arcffi::{
-	alloc::borrow::Cow,
 	windows::com::{Interface, InterfacePtr, InterfaceRef, IUnknown},
 };
 
@@ -22,7 +22,8 @@ pub use arcffi::{
 };
 pub use crate::combat::CombatArgs;
 
-#[cfg(feature = "windows")]
+/// TODO
+#[cfg(all(feature = "arcffi-com", feature = "windows"))]
 pub type IDXGISwapChain = IUnknown;
 
 pub type GetInitFn = unsafe extern "system" fn(
@@ -32,7 +33,7 @@ pub type GetInitFn = unsafe extern "system" fn(
 	module: ModuleExports,
 	malloc: Option<UserMallocFn>,
 	free: Option<UserFreeFn>,
-	d3d_version: u32,
+	imgui_version: u32,
 ) -> Option<InitFn>;
 pub type GetReleaseFn = unsafe extern "system" fn() -> Option<ReleaseFn>;
 pub type InitFn = unsafe extern "C" fn() -> Option<NonNull<ExtensionExports<'static>>>;
@@ -41,24 +42,72 @@ pub type ReleaseFn = unsafe extern "C" fn();
 #[derive(Debug, Clone)]
 pub struct InitArgs {
 	pub arc_version: Option<CStrPtr<'static>>,
-	pub imgui_ctx: Option<NonNull<c_void>>,
+	pub imgui: ImCtx<'static>,
 	pub id3d: ID3d<'static>,
 	pub module: ModuleExports,
-	pub malloc: Option<UserMallocFn>,
-	pub free: Option<UserFreeFn>,
 }
 
 impl InitArgs {
 	pub const EMPTY: Self = InitArgs {
 		arc_version: None,
-		imgui_ctx: None,
+		imgui: ImCtx::EMPTY,
 		id3d: ID3d::EMPTY,
 		module: ModuleExports::INVALID,
-		malloc: None,
-		free: None,
 	};
 
-	pub const ALLOC_USER_DATA: *mut c_void = ptr::null_mut();
+	pub const ALLOC_USER_DATA: *mut c_void = UserMalloc::EMPTY.userdata_ptr();
+
+	pub fn init_version(&self) -> u32 {
+		match self.id3d.version() {
+			0 | Self::GW2_D3DVERSION_LATEST if self.imgui.ptr().is_some() =>
+				self.imgui.version,
+			v => v,
+		}
+	}
+
+	pub const GW2_D3DVERSION_LEGACY: u32 = 9;
+	pub const GW2_D3DVERSION_LATEST: u32 = 11;
+	const GW2_D3DVERSION_END: u32 = Self::GW2_D3DVERSION_LATEST + 1;
+
+	#[inline]
+	pub unsafe fn with_args(
+		arc_version: Option<CStrPtr<'static>>,
+		imgui_ctx: Option<NonNull<c_void>>,
+		id3d: Option<NonNull<c_void>>,
+		module: ModuleExports,
+		malloc: Option<UserMallocFn>,
+		free: Option<UserFreeFn>,
+		imgui_version: u32,
+	) -> Self {
+		let (d3d_version, imgui_version) = match imgui_version {
+			v @ 0..=Self::GW2_D3DVERSION_END => (
+				v,
+				imgui_ctx.map(|_| ExtensionHeader::IMGUI_VERSION_20210202).unwrap_or(0),
+			),
+			v => (
+				id3d.map(|_| Self::GW2_D3DVERSION_LATEST).unwrap_or(0),
+				{
+					#[cfg(feature = "log")]
+					if v < ExtensionHeader::IMGUI_VERSION_THRESHOLD {
+						log::warn!("arcdps d3d or imgui version unrecognized: {v}");
+					}
+					v
+				},
+			),
+		};
+		let id3d = ID3d::new(id3d, d3d_version);
+		let imgui = {
+			let user_malloc = UserMalloc::new(malloc, free, None);
+			ImCtx::new(imgui_ctx, imgui_version, user_malloc)
+		};
+
+		InitArgs {
+			arc_version,
+			imgui,
+			id3d,
+			module,
+		}
+	}
 }
 
 unsafe impl Send for InitArgs {}
@@ -163,12 +212,12 @@ impl<'s> ExtensionExports<'s> {
 		Self::lookup_init(module)
 			.map(|f| f(
 				args.arc_version,
-				args.imgui_ctx,
+				args.imgui.ptr(),
 				args.id3d.ptr(),
 				args.module,
-				args.malloc,
-				args.free,
-				args.id3d.version,
+				args.imgui.user_malloc().malloc,
+				args.imgui.user_malloc().free,
+				args.init_version(),
 			)).ok_or(())
 	}
 }
@@ -181,7 +230,7 @@ impl ExtensionExports<'static> {
 		module: ModuleExports,
 		malloc: Option<UserMallocFn>,
 		free: Option<UserFreeFn>,
-		d3d_version: u32,
+		imgui_version: u32,
 	) -> Option<InitFn> where
 		F: Fn(InitArgs) -> R,
 		R: Into<Option<InitFn>>
@@ -190,18 +239,16 @@ impl ExtensionExports<'static> {
 		let f: F = unsafe {
 			arcffi::transmute_unchecked(f)
 		};
-		let id3d = unsafe {
-			ID3d::new(id3d, d3d_version)
-		};
 
-		f(InitArgs {
+		f(InitArgs::with_args(
 			arc_version,
 			imgui_ctx,
 			id3d,
 			module,
 			malloc,
 			free,
-		}).into()
+			imgui_version,
+		)).into()
 	}
 
 	pub const fn wrap_init_fn_item<F, R>(_f: &'_ F) -> GetInitFn where
@@ -224,8 +271,6 @@ impl ExtensionExports<'static> {
 	) where
 		F: Fn(CombatArgs),
 	{
-		use std::borrow::Cow;
-
 		let f = ();
 		let f: F = unsafe {
 			arcffi::transmute_unchecked(f)
@@ -315,9 +360,13 @@ impl<'s> ExtensionHeader<'s> {
 	pub const EMPTY: Self = unsafe {
 		Self::new(None, 0, 0)
 	};
+	/// sanity check
+	#[cfg(feature = "log")]
+	const IMGUI_VERSION_THRESHOLD: u32 = 16301;
 	/// supported up through to arcdps version 1.2026.416.1629
 	pub const IMGUI_VERSION_20210202: u32 = 18000;
 	pub const IMGUI_VERSION_20260507: u32 = 19270;
+	pub const IMGUI_VERSION_LATEST: u32 = Self::IMGUI_VERSION_20260507;
 
 	pub const unsafe fn new(sig: Option<Sig>, size: u64, imgui_version: u32) -> Self {
 		Self {
@@ -451,15 +500,17 @@ impl<'i> ID3d<'i> {
 		}
 	}
 
+	#[inline(always)]
 	pub const fn version(&self) -> u32 {
 		self.version
 	}
 
+	#[inline(always)]
 	pub const fn as_ptr(&self) -> *mut c_void {
 		nonnull_unwrap_mut(self.id3d)
 	}
 
-	#[cfg(feature = "windows")]
+	#[cfg(all(feature = "arcffi-com", feature = "windows"))]
 	pub fn as_unknown_ref(&self) -> Option<&IUnknown> {
 		match self.version {
 			9..=12 => self.id3d.as_ref().map(|id3d| unsafe {
@@ -469,7 +520,7 @@ impl<'i> ID3d<'i> {
 		}
 	}
 
-	#[cfg(feature = "windows")]
+	#[cfg(all(feature = "arcffi-com", feature = "windows"))]
 	pub fn as_unknown(&self) -> Option<InterfaceRef<'i, IUnknown>> {
 		self.as_unknown_ref()
 			.map(|unk| unsafe {
@@ -477,7 +528,7 @@ impl<'i> ID3d<'i> {
 			})
 	}
 
-	#[cfg(feature = "windows")]
+	#[cfg(all(feature = "arcffi-com", feature = "windows"))]
 	pub fn as_swap_chain_ref(&self) -> Option<Cow<'_, IDXGISwapChain>> {
 		match self.version {
 			11 => self.id3d.as_ref().map(|id3d| Cow::Borrowed(unsafe {
@@ -490,7 +541,7 @@ impl<'i> ID3d<'i> {
 		}
 	}
 
-	#[cfg(feature = "windows")]
+	#[cfg(all(feature = "arcffi-com", feature = "windows"))]
 	pub fn as_swap_chain(&self) -> Option<InterfaceRef<'i, IDXGISwapChain>> {
 		match self.version {
 			11 => self.id3d.map(|id3d| unsafe {
@@ -500,24 +551,128 @@ impl<'i> ID3d<'i> {
 		}
 	}
 
+	#[inline(always)]
 	pub const fn version_ref(&self) -> &u32 {
 		&self.version
 	}
 
+	#[inline(always)]
 	pub unsafe fn version_mut(&mut self) -> &mut u32 {
 		&mut self.version
 	}
 
+	#[inline(always)]
 	pub const fn ptr(&self) -> Option<NonNull<c_void>> {
 		self.id3d
 	}
 
+	#[inline(always)]
 	pub const fn ptr_ref(&self) -> &Option<NonNull<c_void>> {
 		&self.id3d
 	}
 
+	#[inline(always)]
 	pub unsafe fn ptr_mut(&mut self) -> &mut Option<NonNull<c_void>> {
 		&mut self.id3d
+	}
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ImCtx<'i> {
+	imgui_ctx: Option<NonNull<c_void>>,
+	version: u32,
+	user_malloc: UserMalloc,
+	_borrow: PhantomData<&'i c_void>,
+}
+
+impl<'i> ImCtx<'i> {
+	pub const EMPTY: Self = Self::new(None, 0, UserMalloc::EMPTY);
+
+	pub const fn new(imgui_ctx: Option<NonNull<c_void>>, version: u32, user_malloc: UserMalloc) -> Self {
+		Self {
+			imgui_ctx,
+			version,
+			user_malloc,
+			_borrow: PhantomData,
+		}
+	}
+
+	#[inline(always)]
+	pub const fn version(&self) -> u32 {
+		self.version
+	}
+
+	#[inline(always)]
+	pub const fn as_ptr(&self) -> *mut c_void {
+		nonnull_unwrap_mut(self.imgui_ctx)
+	}
+
+	#[inline(always)]
+	pub const fn version_ref(&self) -> &u32 {
+		&self.version
+	}
+
+	#[inline(always)]
+	pub unsafe fn version_mut(&mut self) -> &mut u32 {
+		&mut self.version
+	}
+
+	#[inline(always)]
+	pub const fn ptr(&self) -> Option<NonNull<c_void>> {
+		self.imgui_ctx
+	}
+
+	#[inline(always)]
+	pub const fn ptr_ref(&self) -> &Option<NonNull<c_void>> {
+		&self.imgui_ctx
+	}
+
+	#[inline(always)]
+	pub unsafe fn ptr_mut(&mut self) -> &mut Option<NonNull<c_void>> {
+		&mut self.imgui_ctx
+	}
+
+	#[inline(always)]
+	pub const fn user_malloc(&self) -> &UserMalloc {
+		&self.user_malloc
+	}
+
+	#[inline(always)]
+	pub unsafe fn user_malloc_mut(&mut self) -> &mut UserMalloc {
+		&mut self.user_malloc
+	}
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct UserMalloc {
+	pub userdata: Option<NonNull<c_void>>,
+	pub malloc: Option<UserMallocFn>,
+	pub free: Option<UserFreeFn>,
+}
+
+impl UserMalloc {
+	pub const EMPTY: Self = Self::new(None, None, None);
+
+	#[inline]
+	pub const fn new(malloc: Option<UserMallocFn>, free: Option<UserFreeFn>, userdata: Option<NonNull<c_void>>) -> Self {
+		Self {
+			malloc,
+			free,
+			userdata,
+		}
+	}
+
+	#[inline(always)]
+	pub const fn userdata_ptr(&self) -> *mut c_void {
+		nonnull_unwrap_mut(self.userdata)
+	}
+	#[inline(always)]
+	pub const fn malloc_ptr(&self) -> *mut c_void {
+		unsafe { transmute(self.malloc) }
+	}
+	#[inline(always)]
+	pub const fn free_ptr(&self) -> *mut c_void {
+		unsafe { transmute(self.free) }
 	}
 }
 
@@ -571,16 +726,17 @@ macro_rules! arc_export {
 			module: $crate::api::import::ModuleExports,
 			malloc: Option<$crate::_extern::arcffi::UserMallocFn>,
 			free: Option<$crate::_extern::arcffi::UserFreeFn>,
-			d3d_version: u32,
+			imgui_version: u32,
 		) -> Option<$crate::api::header::InitFn> {
-			$unwrapped($crate::api::header::InitArgs {
+			$unwrapped($crate::api::header::InitArgs::with_args(
 				arc_version,
 				imgui_ctx,
-				id3d: $crate::api::header::ID3d::new(id3d, d3d_version),
+				id3d,
 				module,
 				malloc,
 				free,
-			}).into()
+				imgui_version,
+			)).into()
 		}
 		$(
 			$crate::api::header::arc_export! { $($rest)* }

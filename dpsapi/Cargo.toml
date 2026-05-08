@@ -67,6 +67,9 @@ windows = [
 	"arcffi/library",
 	"dyload?/windows",
 ]
+arcffi-com = [
+	"arcffi/com",
+]
 unwind = [
 	"dyload?/unwind",
 	#"arcdps?/unwind",
