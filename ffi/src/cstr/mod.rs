@@ -637,6 +637,27 @@ impl CSlice {
 				CStr::from_bytes_with_nul_unchecked(chunk)
 			})
 	}
+
+	/// [terminate_bytes(s.as_mut_vec())](Self::terminate_bytes)
+	#[cfg(feature = "std")]
+	#[inline]
+	pub fn terminate_string(s: &mut String) -> &Self {
+		Self::terminate_bytes(unsafe { s.as_mut_vec() })
+	}
+
+	/// appends a nul terminator to the unallocated capacity,
+	/// leaving the underlying buffer unmodified after the borrow ends
+	#[cfg(feature = "std")]
+	pub fn terminate_bytes(buf: &mut Vec<u8>) -> &Self {
+		debug_assert!(buf.iter().rev().skip(1).all(|&b| b != 0));
+		unsafe {
+			let len_prev = buf.len();
+			buf.push(0u8);
+			let bytes = &buf[..] as *const [u8];
+			buf.set_len(len_prev);
+			Self::from_bytes_with_nul_unchecked(&*bytes)
+		}
+	}
 }
 
 impl Borrow<CStr> for CSlice {
