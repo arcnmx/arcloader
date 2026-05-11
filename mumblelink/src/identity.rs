@@ -4,6 +4,7 @@ use std::{
 	os::windows::ffi::OsStringExt,
 	ptr::{self, NonNull},
 };
+#[cfg(feature = "gw2_mumble")]
 use gw2_mumble::{Identity, MumblePtr};
 use arcffi::{nonnull_ref_unchecked, wide::WideUtf8Reader, cstr::CStrPtr16};
 
@@ -60,6 +61,7 @@ impl MumbleIdentity {
 		OsString::from_wide(self.identity_data())
 	}
 
+	#[cfg(feature = "gw2_mumble")]
 	pub fn borrow_identity(ml: &MumblePtr) -> &[u16] {
 		let lm = ml.as_ptr();
 		let identity = unsafe { ptr::addr_of!((*lm).identity) };
@@ -77,8 +79,13 @@ impl MumbleIdentity {
 		unsafe { &*(identity as *const [u16]) }
 	}
 
+	#[cfg(feature = "gw2_mumble")]
+	#[inline]
 	pub fn update_identity_str(&mut self, ml: &MumblePtr) -> bool {
 		let identity = Self::borrow_identity(ml);
+		self.update_identity_wstr(identity)
+	}
+	pub fn update_identity_wstr(&mut self, identity: &[u16]) -> bool {
 		let mut hasher = DefaultHasher::new();
 		identity.hash(&mut hasher);
 		let hash = hasher.finish();
@@ -125,6 +132,7 @@ impl MumbleIdentity {
 		true
 	}
 
+	#[cfg(feature = "gw2_mumble")]
 	pub fn update_from_parsed(id: &Identity) -> NexusIdentityUpdate {
 		// XXX: silent truncation is bad, and may produce an invalid utf8 string
 		let mut name = [0u8; 20];
@@ -148,8 +156,18 @@ impl MumbleIdentity {
 		id.name[0] == 0 && id.world_id == 0 && id.fov == 0.0
 	}
 
+	#[cfg(feature = "gw2_mumble")]
 	pub fn update(&mut self, ml: &MumblePtr) -> bool {
 		if !self.update_identity_str(&ml) {
+			return false
+		}
+		match self.update_identity_from_str() {
+			true => true,
+			_ => false,
+		}
+	}
+	pub fn update_wstr(&mut self, identity: &[u16]) -> bool {
+		if !self.update_identity_wstr(identity) {
 			return false
 		}
 		match self.update_identity_from_str() {
