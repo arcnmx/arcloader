@@ -652,10 +652,22 @@ impl CSlice {
 		debug_assert!(buf.iter().rev().skip(1).all(|&b| b != 0));
 		unsafe {
 			let len_prev = buf.len();
-			buf.push(0u8);
-			let bytes = &buf[..] as *const [u8];
-			buf.set_len(len_prev);
-			Self::from_bytes_with_nul_unchecked(&*bytes)
+			Self::from_bytes_with_nul_unchecked(match () {
+				#[cfg(todo)]
+				_ => {
+					buf.push(0u8);
+					//let data = &buf[..] as *const [u8];
+					buf.set_len(len_prev);
+					//&*data
+					from_raw_parts(buf.as_ptr(), len_prev + 1)
+				},
+				_ => {
+					buf.reserve_exact(1);
+					let ptr = buf.as_mut_ptr();
+					ptr::write_volatile(ptr.add(len_prev), 0u8);
+					from_raw_parts(ptr as *const u8, len_prev + 1)
+				},
+			})
 		}
 	}
 }
